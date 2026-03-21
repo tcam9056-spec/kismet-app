@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
@@ -9,31 +9,38 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   const getFirebaseError = (code: string): string => {
     switch (code) {
       case "auth/user-not-found":
         return "Tài khoản không tồn tại. Hãy đăng ký mới.";
       case "auth/wrong-password":
-        return "Mật khẩu không đúng. Hãy thử lại.";
+      case "auth/invalid-credential":
+        return "Email hoặc mật khẩu không đúng.";
       case "auth/email-already-in-use":
         return "Email này đã được dùng. Hãy đăng nhập.";
       case "auth/weak-password":
         return "Mật khẩu quá yếu. Tối thiểu 6 ký tự.";
       case "auth/invalid-email":
-        return "Email không hợp lệ.";
+        return "Địa chỉ email không hợp lệ.";
       case "auth/too-many-requests":
-        return "Quá nhiều lần thử. Vui lòng đợi.";
-      case "auth/invalid-credential":
-        return "Email hoặc mật khẩu không đúng.";
+        return "Quá nhiều lần thử. Vui lòng đợi vài phút.";
+      case "auth/operation-not-allowed":
+      case "auth/configuration-not-found":
+        setNeedsSetup(true);
+        return "Firebase chưa bật Email/Password. Xem hướng dẫn bên dưới.";
+      case "auth/network-request-failed":
+        return "Lỗi mạng. Kiểm tra kết nối internet.";
       default:
-        return `Lỗi: ${code}`;
+        return `Lỗi xác thực (${code}). Kiểm tra Firebase Console.`;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsSetup(false);
     setLoading(true);
     try {
       if (mode === "login") {
@@ -65,7 +72,7 @@ export default function AuthPage() {
             {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1.5">
                 Email
@@ -76,13 +83,14 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
+                autoComplete="email"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent text-sm transition-all"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1.5">
-                Mật khẩu
+                Mật khẩu {mode === "register" && <span className="text-gray-400">(tối thiểu 6 ký tự)</span>}
               </label>
               <input
                 type="password"
@@ -91,13 +99,39 @@ export default function AuthPage() {
                 placeholder="••••••••"
                 required
                 minLength={6}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent text-sm transition-all"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-100 rounded-xl p-3">
-                <p className="text-red-500 text-sm text-center">{error}</p>
+              <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-red-500 text-sm">{error}</p>
+              </div>
+            )}
+
+            {needsSetup && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+                <p className="font-semibold text-amber-700 mb-2">⚙️ Cần kích hoạt Firebase:</p>
+                <ol className="text-amber-600 space-y-1.5 list-decimal list-inside text-xs">
+                  <li>Mở <strong>console.firebase.google.com</strong></li>
+                  <li>Chọn project <strong>ften-b9f63</strong></li>
+                  <li>Vào <strong>Authentication → Sign-in method</strong></li>
+                  <li>Bật <strong>Email/Password</strong></li>
+                  <li>Vào <strong>Firestore Database → Rules</strong></li>
+                  <li>Dán rules bên dưới → Publish</li>
+                </ol>
+                <div className="mt-3 bg-white rounded-lg p-3 border border-amber-100">
+                  <p className="text-xs font-mono text-gray-600 whitespace-pre">{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}</p>
+                </div>
               </div>
             )}
 
@@ -124,6 +158,7 @@ export default function AuthPage() {
               onClick={() => {
                 setMode(mode === "login" ? "register" : "login");
                 setError(null);
+                setNeedsSetup(false);
               }}
               className="text-sm text-violet-600 hover:text-violet-700 font-medium transition-colors"
             >

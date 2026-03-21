@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useKeys } from "@/hooks/useKeys";
 import { GEMINI_MODELS } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot } from "lucide-react";
+import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap } from "lucide-react";
 
 interface Props {
   onBack: () => void;
@@ -11,11 +11,42 @@ interface Props {
 export default function SettingsPage({ onBack }: Props) {
   const { user } = useAuth();
   const { keys, selectedModel, loading, saveKeys } = useKeys();
-  const [localKeys, setLocalKeys] = useState<string[]>(keys);
-  const [localModel, setLocalModel] = useState(selectedModel);
+  const [localKeys, setLocalKeys] = useState<string[]>([]);
+  const [localModel, setLocalModel] = useState("gemini-2.5-flash");
   const [newKey, setNewKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [serverKeyAvailable, setServerKeyAvailable] = useState(false);
+  const [loadingServerKey, setLoadingServerKey] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setLocalKeys(keys);
+      setLocalModel(selectedModel);
+    }
+  }, [loading, keys, selectedModel]);
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.hasDefaultKey) setServerKeyAvailable(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  const useServerKey = async () => {
+    setLoadingServerKey(true);
+    try {
+      const r = await fetch("/api/config");
+      const data = await r.json();
+      if (data.defaultGeminiKey && !localKeys.includes(data.defaultGeminiKey)) {
+        setLocalKeys((prev) => [data.defaultGeminiKey, ...prev]);
+      }
+    } catch {
+    }
+    setLoadingServerKey(false);
+  };
 
   const addKey = () => {
     const k = newKey.trim();
@@ -33,7 +64,7 @@ export default function SettingsPage({ onBack }: Props) {
     await saveKeys(localKeys, localModel);
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   if (loading) {
@@ -92,7 +123,7 @@ export default function SettingsPage({ onBack }: Props) {
           </div>
 
           <div>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-2">
               <Key className="w-4 h-4 text-violet-500" />
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                 API Keys (Pháp Khí)
@@ -100,7 +131,31 @@ export default function SettingsPage({ onBack }: Props) {
             </div>
             <p className="text-xs text-gray-400 mb-3">
               Thêm nhiều key để tự động xoay vòng khi gặp lỗi 429/400.
+              Lấy key tại{" "}
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-violet-500 underline"
+              >
+                aistudio.google.com/apikey
+              </a>
             </p>
+
+            {serverKeyAvailable && (
+              <button
+                onClick={useServerKey}
+                disabled={loadingServerKey}
+                className="w-full mb-3 flex items-center gap-2 px-4 py-3 rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-700 transition-all text-sm font-medium"
+              >
+                {loadingServerKey ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Zap className="w-4 h-4" />
+                )}
+                <span>Dùng Google API Key từ hệ thống (tự động)</span>
+              </button>
+            )}
 
             <div className="space-y-2 mb-3">
               {localKeys.map((key, i) => (
@@ -121,7 +176,7 @@ export default function SettingsPage({ onBack }: Props) {
                 </div>
               ))}
               {localKeys.length === 0 && (
-                <div className="text-center py-4 text-gray-300 text-sm">
+                <div className="text-center py-4 text-gray-300 text-sm border border-dashed border-gray-200 rounded-xl">
                   Chưa có API Key nào
                 </div>
               )}
@@ -133,7 +188,8 @@ export default function SettingsPage({ onBack }: Props) {
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addKey()}
-                placeholder="AIza..."
+                placeholder="AIza... (Dán API Key vào đây)"
+                autoComplete="off"
                 className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent text-sm transition-all"
               />
               <button
@@ -144,6 +200,19 @@ export default function SettingsPage({ onBack }: Props) {
                 <Plus className="w-5 h-5" />
               </button>
             </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-600 space-y-1">
+            <p className="font-semibold">📋 Firestore Security Rules</p>
+            <p>Nếu không tải được chat, vào Firestore Console → Rules → dán:</p>
+            <pre className="bg-white rounded-lg p-2 mt-2 text-xs text-gray-600 overflow-x-auto">{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}</pre>
           </div>
 
           <button
