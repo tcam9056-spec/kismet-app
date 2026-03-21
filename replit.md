@@ -4,6 +4,30 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+## KISMET - AI Character Chat App
+
+Full-stack AI character chat app with:
+- **Firebase Auth** (Email/Password) — login/register
+- **Firestore** — persistent chat history per UID, characters collection
+- **Gemini AI** (2.5/3.1 only) — direct API calls from frontend
+- **BYOK** — user stores their own API keys in Firestore `users/{uid}/settings/config`
+- **Auto key rotation** — tries next key on 429/400 errors
+- **Mystic Light theme** — white ceramic background, Lavender Violet accent
+
+### Characters
+- Stored in Firestore `characters` collection with `isPublic` flag
+- Default characters seeded on first login
+- Users can create custom characters (private)
+
+### Chat
+- Messages stored in `chats/{uid}_{characterId}/messages`
+- Ordered by timestamp, loaded on character open
+- Error codes shown: 400, 403, 404, 429
+
+### Models supported
+- gemini-2.5-flash, gemini-2.5-pro, gemini-3.1-flash, gemini-3.1-pro
+- Model IDs prefixed with `models/` when calling Gemini API
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces

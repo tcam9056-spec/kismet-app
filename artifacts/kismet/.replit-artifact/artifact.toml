@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "KISMET - AI Character Chat"
+version = "1.0.0"
+id = "artifacts/kismet"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25447
+
+[services.development]
+run = "pnpm --filter @workspace/kismet run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kismet", "run", "build" ]
+publicDir = "artifacts/kismet/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25447"
+BASE_PATH = "/"
