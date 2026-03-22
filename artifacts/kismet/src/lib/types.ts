@@ -3,7 +3,9 @@ export interface Character {
   name: string;
   avatar: string;
   slogan: string;
-  curse: string;
+  curse?: string;
+  tags?: string[];
+  firstMessage?: string;
   personality: string;
   isPublic: boolean;
   isApproved?: boolean;

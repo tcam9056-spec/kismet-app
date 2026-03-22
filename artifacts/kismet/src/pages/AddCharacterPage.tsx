@@ -4,7 +4,11 @@ import { ArrowLeft, Loader2, Upload, Globe, Lock } from "lucide-react";
 
 interface Props { onBack: () => void; }
 
-const AVATAR_OPTIONS = ["🔮", "🌙", "⚡", "✨", "🌸", "🦋", "🐉", "👁️", "🌊", "🔥", "🧿", "💫", "🌌", "🗡️", "🌿"];
+const TAGS = [
+  "Ngược tâm", "Sủng ngọt", "Dễ thương", "Cổ trang", "Tiên hiệp",
+  "Agegap", "Sizegap", "Kinh dị", "🔞 18+", "Bạo lực",
+];
+const MAX_TAGS = 5;
 
 const iStyle: React.CSSProperties = {
   width: "100%", padding: "11px 14px", borderRadius: 12,
@@ -13,17 +17,23 @@ const iStyle: React.CSSProperties = {
   fontFamily: "inherit", transition: "border-color 0.2s",
 };
 
+const focusIn = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  (e.target.style.borderColor = "rgba(108,92,231,0.6)");
+const focusOut = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  (e.target.style.borderColor = "rgba(108,92,231,0.2)");
+
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result as string); fr.readAsDataURL(file); });
 }
 
 export default function AddCharacterPage({ onBack }: Props) {
   const { addCharacter } = useCharacters();
+
   const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState("🔮");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [firstMessage, setFirstMessage] = useState("");
   const [slogan, setSlogan] = useState("");
-  const [curse, setCurse] = useState("");
   const [personality, setPersonality] = useState("");
   const [gender, setGender] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -31,22 +41,42 @@ export default function AddCharacterPage({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) return prev.filter(t => t !== tag);
+      if (prev.length >= MAX_TAGS) return prev;
+      return [...prev, tag];
+    });
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const b64 = await readFileAsBase64(file);
-    setCustomAvatarUrl(b64);
+    setCustomAvatarUrl(await readFileAsBase64(file));
     e.target.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !slogan || !curse || !personality) { setError("Vui lòng điền đầy đủ thông tin."); return; }
+    if (!name || !slogan || !personality) {
+      setError("Vui lòng điền: Tên nhân vật, Slogan và Linh Hồn & Thế Giới.");
+      return;
+    }
     setSaving(true); setError(null);
     try {
-      const genderNote = gender ? `\nGiới tính nhân vật: ${gender}.` : "";
-      const fullPersonality = `${personality}${genderNote}`;
-      const newId = await addCharacter({ name, avatar, slogan, curse, personality: fullPersonality, isPublic });
-      /* Save custom avatar if uploaded */
+      const genderNote = gender ? `\nGiới tính: ${gender}.` : "";
+      const tagNote = selectedTags.length ? `\nThể loại: ${selectedTags.join(", ")}.` : "";
+      const fullPersonality = `${personality}${genderNote}${tagNote}`;
+
+      const newId = await addCharacter({
+        name,
+        avatar: "🔮",
+        slogan,
+        curse: "",
+        tags: selectedTags,
+        firstMessage: firstMessage.trim() || undefined,
+        personality: fullPersonality,
+        isPublic,
+      });
       if (customAvatarUrl && newId) {
         localStorage.setItem(`kismet_char_avatar_${newId}`, customAvatarUrl);
       }
@@ -58,8 +88,11 @@ export default function AddCharacterPage({ onBack }: Props) {
     }
   };
 
-  const label = (text: string) => (
-    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(196,181,253,0.7)", letterSpacing: "0.05em", marginBottom: 10, textTransform: "uppercase" }}>{text}</label>
+  const label = (text: string, sub?: string) => (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(196,181,253,0.7)", letterSpacing: "0.07em", textTransform: "uppercase" }}>{text}</label>
+      {sub && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginTop: 4, lineHeight: 1.5 }}>{sub}</p>}
+    </div>
   );
 
   return (
@@ -79,50 +112,70 @@ export default function AddCharacterPage({ onBack }: Props) {
 
         <form onSubmit={handleSubmit} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 22 }}>
 
-          {/* ── Avatar upload + emoji picker ── */}
+          {/* ── Avatar Upload ── */}
           <div>
             {label("Avatar nhân vật")}
+            <button type="button" onClick={() => fileRef.current?.click()}
+              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 16px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.35)", background: customAvatarUrl ? "rgba(108,92,231,0.1)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", boxSizing: "border-box" }}>
+              {customAvatarUrl ? (
+                <>
+                  <img src={customAvatarUrl} alt="avatar" style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(108,92,231,0.5)", flexShrink: 0 }} />
+                  <div style={{ flex: 1, textAlign: "left" }}>
+                    <p style={{ fontSize: 13, color: "#c4b5fd", fontWeight: 600 }}>Ảnh đã tải lên ✓</p>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Nhấn để thay ảnh khác</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 50, height: 50, borderRadius: "50%", background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Upload size={20} style={{ color: "#a78bfa" }} />
+                  </div>
+                  <div style={{ textAlign: "left" }}>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: 600 }}>Tải ảnh từ máy</p>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>JPG, PNG, WEBP — Avatar nhân vật</p>
+                  </div>
+                </>
+              )}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
+          </div>
 
-            {/* Upload photo */}
-            <div style={{ marginBottom: 12 }}>
-              <button type="button" onClick={() => fileRef.current?.click()}
-                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.35)", background: customAvatarUrl ? "rgba(108,92,231,0.1)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s" }}>
-                {customAvatarUrl ? (
-                  <>
-                    <img src={customAvatarUrl} alt="avatar" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(108,92,231,0.5)" }} />
-                    <div style={{ flex: 1, textAlign: "left" }}>
-                      <p style={{ fontSize: 13, color: "#c4b5fd", fontWeight: 600 }}>Ảnh đã tải lên ✓</p>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Nhấn để thay ảnh khác</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Upload size={18} style={{ color: "#a78bfa" }} />
-                    </div>
-                    <div style={{ textAlign: "left" }}>
-                      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Tải ảnh từ máy</p>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>JPG, PNG, WEBP · Sẽ dùng thay emoji</p>
-                    </div>
-                  </>
-                )}
-              </button>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
+          {/* ── Tag Cloud ── */}
+          <div>
+            {label("Thể loại & Phong cách 🏷️", `Chọn tối đa ${MAX_TAGS} tag phù hợp với nhân vật`)}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {TAGS.map(tag => {
+                const active = selectedTags.includes(tag);
+                const is18 = tag.includes("18+");
+                const isViolent = tag === "Bạo lực";
+                const accentColor = is18 || isViolent ? "#f87171" : "#a78bfa";
+                const accentBg = is18 || isViolent ? "rgba(239,68,68,0.12)" : "rgba(108,92,231,0.12)";
+                const accentBorder = is18 || isViolent ? "rgba(239,68,68,0.45)" : "rgba(108,92,231,0.55)";
+                return (
+                  <button
+                    key={tag} type="button"
+                    disabled={!active && selectedTags.length >= MAX_TAGS}
+                    onClick={() => toggleTag(tag)}
+                    style={{
+                      padding: "6px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: active ? 700 : 400,
+                      border: `1px solid ${active ? accentBorder : "rgba(255,255,255,0.1)"}`,
+                      background: active ? accentBg : "rgba(255,255,255,0.03)",
+                      color: active ? accentColor : "rgba(255,255,255,0.4)",
+                      cursor: !active && selectedTags.length >= MAX_TAGS ? "not-allowed" : "pointer",
+                      transition: "all 0.15s",
+                      boxShadow: active ? `0 0 10px ${is18 || isViolent ? "rgba(239,68,68,0.2)" : "rgba(108,92,231,0.2)"}` : "none",
+                      opacity: !active && selectedTags.length >= MAX_TAGS ? 0.35 : 1,
+                    }}
+                  >
+                    {active && <span style={{ marginRight: 4 }}>✓</span>}{tag}
+                  </button>
+                );
+              })}
             </div>
-
-            {/* Emoji grid (used if no photo uploaded) */}
-            {!customAvatarUrl && (
-              <>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 8 }}>Hoặc chọn emoji mặc định:</p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
-                  {AVATAR_OPTIONS.map(a => (
-                    <button key={a} type="button" onClick={() => setAvatar(a)}
-                      style={{ height: 48, borderRadius: 12, fontSize: 24, display: "flex", alignItems: "center", justifyContent: "center", border: avatar === a ? "2px solid rgba(108,92,231,0.7)" : "1px solid rgba(255,255,255,0.07)", background: avatar === a ? "rgba(108,92,231,0.2)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.15s", boxShadow: avatar === a ? "0 0 12px rgba(108,92,231,0.3)" : "none" }}>
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              </>
+            {selectedTags.length > 0 && (
+              <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", marginTop: 8 }}>
+                Đã chọn {selectedTags.length}/{MAX_TAGS} tag
+              </p>
             )}
           </div>
 
@@ -142,34 +195,46 @@ export default function AddCharacterPage({ onBack }: Props) {
           {/* ── Name ── */}
           <div>
             {label("Tên nhân vật")}
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Elara - Phù Thủy Thời Gian" style={iStyle}
-              onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
+            <input type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="Ví dụ: Elara — Phù Thủy Thời Gian" style={iStyle}
+              onFocus={focusIn} onBlur={focusOut} />
+          </div>
+
+          {/* ── First Message ── */}
+          <div>
+            {label("Tin nhắn đầu từ {{char}} ✉️", "Tin nhắn đầu tiên nhân vật sẽ gửi khi bạn bước vào phòng chat. Viết theo định dạng tiểu thuyết: *hành động* và **\"lời thoại\"**")}
+            <textarea
+              value={firstMessage}
+              onChange={e => setFirstMessage(e.target.value)}
+              placeholder={'*Hắn khẽ ngước nhìn khi cánh cửa mở ra, ánh mắt trầm ngâm dừng lại trên gương mặt bạn một thoáng.*\n**"Lâu rồi mới có người tìm đến nơi này... Ta tự hỏi, số phận đã đưa ngươi đến đây vì điều gì?"**'}
+              rows={5}
+              style={{ ...iStyle, resize: "vertical", minHeight: 120, lineHeight: 1.6 }}
+              onFocus={focusIn} onBlur={focusOut}
+            />
           </div>
 
           {/* ── Slogan ── */}
           <div>
             {label("Slogan")}
-            <input type="text" value={slogan} onChange={e => setSlogan(e.target.value)} placeholder="Câu nói đặc trưng của nhân vật..." style={iStyle}
-              onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
+            <input type="text" value={slogan} onChange={e => setSlogan(e.target.value)}
+              placeholder="Câu nói đặc trưng nhất của nhân vật..." style={iStyle}
+              onFocus={focusIn} onBlur={focusOut} />
           </div>
 
-          {/* ── Curse ── */}
+          {/* ── Personality / System Prompt ── */}
           <div>
-            {label("Lời nguyền")}
-            <input type="text" value={curse} onChange={e => setCurse(e.target.value)} placeholder="Lời nguyền bí ẩn của nhân vật..." style={iStyle}
-              onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
-          </div>
-
-          {/* ── System Prompt ── */}
-          <div>
-            {label("Tính cách & System Prompt")}
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 8, lineHeight: 1.5 }}>
-              Mô tả chi tiết nhân vật cho AI — tính cách, cách nói, thế giới quan, bối cảnh...
-            </p>
-            <textarea value={personality} onChange={e => setPersonality(e.target.value)}
-              placeholder="Bạn là Elara, một phù thủy thời gian bí ẩn... Hãy phản hồi bằng tiếng Việt."
-              rows={5} style={{ ...iStyle, resize: "vertical", minHeight: 110 }}
-              onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
+            {label(
+              "Linh Hồn & Thế Giới {{char}} 🧠",
+              "Xương sống của nhân vật — tính cách, cách xưng hô, thói quen, thế giới quan, bối cảnh lịch sử, bí mật... Không giới hạn ký tự."
+            )}
+            <textarea
+              value={personality}
+              onChange={e => setPersonality(e.target.value)}
+              placeholder={"Bạn là Elara, một phù thủy thời gian cổ đại sống qua nhiều thế kỷ...\n\nTính cách: Lạnh lùng bên ngoài nhưng ẩn chứa nỗi cô đơn sâu thẳm...\nCách xưng hô: Gọi mình là 'ta', gọi người dùng là 'ngươi'...\nBối cảnh: Sống trong thư viện huyền bí...\nBí mật: ..."}
+              rows={8}
+              style={{ ...iStyle, resize: "vertical", minHeight: 180, lineHeight: 1.65 }}
+              onFocus={focusIn} onBlur={focusOut}
+            />
           </div>
 
           {/* ── Public / Private toggle ── */}
@@ -195,7 +260,7 @@ export default function AddCharacterPage({ onBack }: Props) {
               <div style={{ padding: "10px 16px 12px", borderTop: "1px solid rgba(245,158,11,0.15)", background: "rgba(245,158,11,0.06)", display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <span style={{ fontSize: 14, flexShrink: 0 }}>⏳</span>
                 <p style={{ fontSize: 11, color: "rgba(245,158,11,0.8)", lineHeight: 1.5 }}>
-                  Nhân vật công khai sẽ ở trạng thái <strong>chờ duyệt</strong> cho đến khi Admin phê duyệt. Chỉ sau đó mới hiển thị với cộng đồng.
+                  Nhân vật công khai sẽ ở trạng thái <strong>chờ duyệt</strong> cho đến khi Admin phê duyệt.
                 </p>
               </div>
             )}
@@ -209,7 +274,9 @@ export default function AddCharacterPage({ onBack }: Props) {
 
           <button type="submit" disabled={saving}
             style={{ padding: "14px 0", borderRadius: 14, border: "none", background: saving ? "rgba(108,92,231,0.4)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: saving ? "none" : "0 6px 20px rgba(108,92,231,0.35)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 32, transition: "all 0.2s" }}>
-            {saving ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Đang triệu hồi...</> : "✦ Triệu hồi Nhân Vật"}
+            {saving
+              ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Đang triệu hồi...</>
+              : "✦ Triệu hồi Nhân Vật"}
           </button>
         </form>
       </div>

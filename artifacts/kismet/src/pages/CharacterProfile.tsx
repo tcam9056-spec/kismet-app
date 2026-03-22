@@ -138,7 +138,7 @@ export default function CharacterProfile({ character, onClose, onChat }: Props) 
               lineHeight: 1.5,
             }}
           >
-            "{character.curse}"
+            {character.curse ? `"${character.curse}"` : character.slogan}
           </p>
         </div>
 

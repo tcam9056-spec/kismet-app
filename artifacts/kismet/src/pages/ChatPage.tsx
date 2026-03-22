@@ -149,7 +149,7 @@ function CharProfileModal({ character, charAvatarUrl, onClose }: { character: Ch
         <div style={{ padding: "18px 20px 0" }}>
           {[
             { label: "✦ Bối cảnh & Tính cách", value: character.personality },
-            { label: "⚡ Lời nguyền", value: character.curse },
+            ...(character.curse ? [{ label: "⚡ Lời nguyền", value: character.curse }] : []),
           ].map(({ label, value }) => (
             <div key={label} style={{ marginBottom: 14, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)" }}>
               <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label}</p>

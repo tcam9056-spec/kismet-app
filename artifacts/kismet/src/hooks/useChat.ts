@@ -112,7 +112,21 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
 
     getDocs(q)
       .then((snap) => {
-        if (snap.empty) { setLoading(false); return; }
+        if (snap.empty) {
+          /* Inject firstMessage if character has one */
+          if (character.firstMessage?.trim()) {
+            const initMsg: Message = {
+              id: `first_${character.id}`,
+              role: "assistant",
+              content: character.firstMessage.trim(),
+              timestamp: Date.now(),
+            };
+            setMessages([initMsg]);
+            saveLocalMessages(email, character.id, [initMsg]);
+          }
+          setLoading(false);
+          return;
+        }
         const loaded: Message[] = snap.docs.map((d) => {
           const data = d.data();
           return {
@@ -171,7 +185,9 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
 
     /* Build full system prompt = user context + character personality */
     const userContext = buildUserContext(user.uid);
-    const charPrompt = `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`;
+    const charPrompt = character.curse
+      ? `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`
+      : `${character.personality}\n\nSlogan: "${character.slogan}"`;
 
     /* Get user name for {{user}} substitution */
     let userName = "người dùng";

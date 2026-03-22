@@ -239,9 +239,17 @@ function ForumCard({ char, onChat, onProfile }: { char: Character; onChat: () =>
           <p style={{ fontSize: 12, color: "#a78bfa", fontStyle: "italic", lineHeight: 1.5, marginBottom: 8 }}>
             "{char.slogan}"
           </p>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
-            {char.curse}
-          </p>
+          {char.tags && char.tags.length > 0 ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}>
+              {char.tags.slice(0, 4).map(tag => (
+                <span key={tag} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 12, background: tag.includes("18+") || tag === "Bạo lực" ? "rgba(239,68,68,0.1)" : "rgba(108,92,231,0.1)", border: `1px solid ${tag.includes("18+") || tag === "Bạo lực" ? "rgba(239,68,68,0.25)" : "rgba(108,92,231,0.25)"}`, color: tag.includes("18+") || tag === "Bạo lực" ? "#f87171" : "rgba(167,139,250,0.7)", fontWeight: 500 }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : char.curse ? (
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{char.curse}</p>
+          ) : null}
         </div>
       </div>
 
