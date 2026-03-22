@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Share2, Download, Loader2, Copy, Check, Lock } from "lucide-react";
+import { X, Share2, Download, Loader2, Copy, Check, Lock, Camera } from "lucide-react";
 import type { Character } from "@/lib/types";
 import { ADMIN_EMAIL } from "@/lib/types";
 import QRCode from "qrcode";
@@ -448,7 +448,9 @@ interface Props {
 }
 
 export default function CharacterProfile({ character, onClose, onChat, onEdit, creatorName = "KISMET", viewerEmail, onViewCreator }: Props) {
-  const avatarSrc = localStorage.getItem(`kismet_char_avatar_${character.id}`);
+  const avatarKey = `kismet_char_avatar_${character.id}`;
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(() => localStorage.getItem(avatarKey));
+  const avatarFileRef = useRef<HTMLInputElement>(null);
   const code = encodeCharacter(character);
 
   /* Xác định quyền: chủ sở hữu = người tạo hoặc admin */
@@ -463,7 +465,23 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
   const [generatingCard, setGeneratingCard] = useState(false);
   const [cardUrl, setCardUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const cardRef = useRef<HTMLImageElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      localStorage.setItem(avatarKey, b64);
+      setAvatarSrc(b64);
+      setAvatarUploading(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   const sections = parsePersonalitySections(character.personality);
 
@@ -510,8 +528,26 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
         <div style={{ padding: "22px 24px 0", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(108,92,231,0.3) 0%, transparent 70%)", filter: "blur(32px)", pointerEvents: "none" }} />
 
-          <div style={{ width: 112, height: 112, borderRadius: "50%", background: avatarSrc ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 58, overflow: "hidden", border: "2.5px solid transparent", backgroundClip: "padding-box", boxShadow: "0 0 0 2.5px rgba(108,92,231,0.6), 0 0 0 5px rgba(212,175,55,0.25), 0 0 40px rgba(108,92,231,0.45), 0 0 80px rgba(108,92,231,0.15)", position: "relative", zIndex: 1 }}>
-            {avatarSrc ? <img src={avatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : character.avatar}
+          <div style={{ position: "relative", zIndex: 1, display: "inline-block" }}>
+            <div style={{ width: 112, height: 112, borderRadius: "50%", background: avatarSrc ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 58, overflow: "hidden", border: "2.5px solid transparent", backgroundClip: "padding-box", boxShadow: "0 0 0 2.5px rgba(108,92,231,0.6), 0 0 0 5px rgba(212,175,55,0.25), 0 0 40px rgba(108,92,231,0.45), 0 0 80px rgba(108,92,231,0.15)" }}>
+              {avatarUploading
+                ? <Loader2 size={28} style={{ color: "#a78bfa", animation: "spin 1s linear infinite" }} />
+                : avatarSrc
+                  ? <img src={avatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : character.avatar}
+            </div>
+            {/* Camera upload button — chỉ hiện với chủ sở hữu */}
+            {isOwner && (
+              <>
+                <button
+                  onClick={() => avatarFileRef.current?.click()}
+                  title="Đổi ảnh đại diện"
+                  style={{ position: "absolute", bottom: 4, right: 4, width: 30, height: 30, borderRadius: "50%", border: "2px solid #100d1a", background: "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, boxShadow: "0 2px 8px rgba(108,92,231,0.5)" }}>
+                  <Camera size={14} />
+                </button>
+                <input ref={avatarFileRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
+              </>
+            )}
           </div>
 
           <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginTop: 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
