@@ -4,10 +4,10 @@ export interface GeminiError { code: number; message: string; }
 
 /* ── Cấu hình cứng: tên hiển thị → { ID thực, API version } ── */
 const MODEL_CONFIG: Record<string, { apiId: string; version: "v1" | "v1beta" }> = {
-  "gemini-2.5-flash": { apiId: "gemini-2.5-flash", version: "v1" },
-  "gemini-2.5-pro":   { apiId: "gemini-2.5-pro",   version: "v1" },
-  "gemini-3.1-flash": { apiId: "gemini-3.1-flash-preview", version: "v1beta" },
-  "gemini-3.1-pro":   { apiId: "gemini-3.1-pro-preview",   version: "v1beta" },
+  "gemini-2.5-flash": { apiId: "gemini-1.5-flash",              version: "v1beta" },
+  "gemini-2.5-pro":   { apiId: "gemini-1.5-pro",                version: "v1beta" },
+  "gemini-3.1-flash": { apiId: "gemini-3.1-flash-lite-preview", version: "v1beta" },
+  "gemini-3.1-pro":   { apiId: "gemini-3.1-pro-preview",        version: "v1beta" },
 };
 
 function resolveModel(model: string): { mId: string; version: string } {

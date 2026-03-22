@@ -5,7 +5,10 @@ import { testModel } from "@/lib/gemini";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders, FlaskConical, CheckCircle2, XCircle } from "lucide-react";
 
-type ModelStatus = "ok" | "error" | "checking";
+type ModelStatus = "ok" | "error" | "checking" | "pending";
+
+/* Models không test — hiện trạng "Chờ nâng cấp" */
+const PENDING_MODELS = new Set(["gemini-3.1-pro"]);
 
 
 const MAX_TOKENS_KEY = "kismet_maxTokens";
@@ -72,18 +75,19 @@ export default function SettingsPage({ onBack }: Props) {
     if (localKeys.length === 0) return;
     setCheckingModels(true);
     const apiKey = localKeys[0];
-    /* Mark all as "checking" first */
+    /* Mark testable as "checking", pending models as "pending" ngay */
     const init: Record<string, ModelStatus> = {};
-    for (const m of GEMINI_MODELS) init[m.id] = "checking";
+    for (const m of GEMINI_MODELS) init[m.id] = PENDING_MODELS.has(m.id) ? "pending" : "checking";
     setModelStatuses({ ...init });
-    /* Test each model in parallel via direct API call */
+    /* Test chỉ các model không phải pending — song song */
+    const toTest = GEMINI_MODELS.filter(m => !PENDING_MODELS.has(m.id));
     const results = await Promise.all(
-      GEMINI_MODELS.map(async (m) => {
+      toTest.map(async (m) => {
         const ok = await testModel(apiKey, m.id);
         return { id: m.id, status: ok ? "ok" : "error" } as { id: string; status: ModelStatus };
       })
     );
-    const statuses: Record<string, ModelStatus> = {};
+    const statuses: Record<string, ModelStatus> = { ...init };
     for (const r of results) statuses[r.id] = r.status;
     setModelStatuses(statuses);
     setCheckingModels(false);
@@ -380,7 +384,6 @@ export default function SettingsPage({ onBack }: Props) {
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                      {/* Status indicator */}
                       {st === "checking" && (
                         <Loader2 size={14} style={{ color: "rgba(167,139,250,0.5)", animation: "spin 1s linear infinite" }} />
                       )}
@@ -390,7 +393,15 @@ export default function SettingsPage({ onBack }: Props) {
                       {st === "error" && (
                         <XCircle size={14} style={{ color: "#ef4444" }} />
                       )}
-                      {/* Selected checkmark (when no test has been run) */}
+                      {st === "pending" && (
+                        <span style={{
+                          fontSize: 9, padding: "2px 8px", borderRadius: 20, fontWeight: 700,
+                          background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)",
+                          color: "#f59e0b", whiteSpace: "nowrap",
+                        }}>
+                          Chờ nâng cấp
+                        </span>
+                      )}
                       {!st && isSelected && (
                         <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
                       )}
