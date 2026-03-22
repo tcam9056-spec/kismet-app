@@ -58,6 +58,38 @@ export function decodeCharacter(code: string): Omit<Character, "id" | "createdBy
   return null;
 }
 
+/* ══════════════════════════════════════════════════
+   PARSE PERSONALITY — trích xuất sạch, ẩn code {}
+══════════════════════════════════════════════════ */
+function parsePersonalitySections(personality: string): {
+  background: string;   /* Linh Hồn & Thế Giới — đã lọc code */
+  appearance: string;   /* Ngoại hình */
+  traits: string;       /* Tính cách */
+  curse: string;        /* Lời nguyền nếu có */
+} {
+  /* Xoá mọi block {...} system-prompt code */
+  const stripped = personality.replace(/\{[^{}]*(\{[^{}]*\}[^{}]*)*\}/g, "").trim();
+
+  /* Tách theo markers ━━ */
+  const appMatch  = stripped.match(/━━\s*NGOẠI HÌNH[^━]*━━\s*([\s\S]*?)(?=━━|$)/i);
+  const traitMatch = stripped.match(/━━\s*TÍNH CÁCH[^━]*━━\s*([\s\S]*?)(?=━━|$)/i);
+  const curseMatch = stripped.match(/━━\s*LỜI NGUYỀN[^━]*━━\s*([\s\S]*?)(?=━━|$)/i);
+
+  /* Phần trước marker đầu tiên = background */
+  const bgRaw = stripped.split(/━━\s*NGOẠI HÌNH/i)[0]
+    .split(/━━\s*TÍNH CÁCH/i)[0]
+    .replace(/^\s*━+.*━+\s*/gm, "")   /* xoá dòng ━ */
+    .replace(/^\s*\[.*?\]\s*$/gm, "") /* xoá [BLOCK HEADER] */
+    .trim();
+
+  return {
+    background: bgRaw,
+    appearance: appMatch  ? appMatch[1].replace(/^\s*━+.*━+\s*/gm,"").trim() : "",
+    traits:     traitMatch ? traitMatch[1].replace(/^\s*━+.*━+\s*/gm,"").trim() : "",
+    curse:      curseMatch ? curseMatch[1].replace(/^\s*━+.*━+\s*/gm,"").trim() : "",
+  };
+}
+
 /* ── Tag colors ── */
 function tagColor(tag: string) {
   const hot = tag.includes("18+") || tag === "Bạo lực";
@@ -421,9 +453,7 @@ export default function CharacterProfile({ character, onClose, onChat, creatorNa
   const [copied, setCopied] = useState(false);
   const cardRef = useRef<HTMLImageElement>(null);
 
-  const personalityPreview = character.personality.length > 300
-    ? character.personality.slice(0, 300) + "…"
-    : character.personality;
+  const sections = parsePersonalitySections(character.personality);
 
   const handleShare = async () => {
     setShareMode(true);
@@ -501,11 +531,108 @@ export default function CharacterProfile({ character, onClose, onChat, creatorNa
           )}
         </div>
 
-        {/* Personality */}
-        <div style={{ margin: "4px 20px 20px", padding: "16px", borderRadius: 16, background: "rgba(0,0,0,0.25)", border: "1px solid rgba(108,92,231,0.12)" }}>
-          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>⊹ Linh Hồn & Thế Giới</p>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.7, whiteSpace: "pre-line" }}>{personalityPreview}</p>
-        </div>
+        {/* ══ SOUL SECTION — Linh hồn & Thế giới (background sạch) ══ */}
+        {sections.background.length > 0 && (
+          <div style={{ margin: "4px 18px 14px", position: "relative" }}>
+            {/* Hào quang tím nhẹ */}
+            <div style={{ position: "absolute", inset: -8, borderRadius: 22, background: "radial-gradient(ellipse at 50% 0%, rgba(108,92,231,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "relative", padding: "16px 18px", borderRadius: 18, background: "rgba(255,255,255,0.035)", border: "1px solid rgba(108,92,231,0.22)", backdropFilter: "blur(12px)" }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.55)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12 }}>✦</span> Linh Hồn &amp; Thế Giới
+              </p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.75, whiteSpace: "pre-line" }}>{sections.background}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ══ APPEARANCE — Ngoại hình glassmorphism vàng ══ */}
+        {sections.appearance.length > 0 && (
+          <div style={{ margin: "0 18px 14px", position: "relative" }}>
+            {/* Hào quang vàng bên ngoài */}
+            <div style={{ position: "absolute", inset: -10, borderRadius: 26, background: "radial-gradient(ellipse at 50% 50%, rgba(212,175,55,0.22) 0%, rgba(212,175,55,0.06) 55%, transparent 80%)", pointerEvents: "none", zIndex: 0 }} />
+            {/* Outer glow border */}
+            <div style={{ position: "absolute", inset: -1.5, borderRadius: 21, background: "linear-gradient(135deg, rgba(212,175,55,0.55) 0%, rgba(167,139,250,0.3) 50%, rgba(212,175,55,0.55) 100%)", zIndex: 0 }} />
+
+            <div style={{ position: "relative", zIndex: 1, padding: "18px 18px", borderRadius: 20, background: "linear-gradient(155deg, rgba(30,22,60,0.92) 0%, rgba(15,10,30,0.96) 100%)", backdropFilter: "blur(16px)" }}>
+              {/* Sparkle dots */}
+              <div className="profile-sparkle-field" style={{ position: "absolute", inset: 0, borderRadius: 20, overflow: "hidden", pointerEvents: "none" }}>
+                {[
+                  { top: "12%", left: "8%",  size: 3,   delay: "0s",    color: "#f0d060" },
+                  { top: "78%", left: "15%", size: 2,   delay: "0.7s",  color: "#d4af37" },
+                  { top: "22%", left: "88%", size: 2.5, delay: "1.3s",  color: "#a78bfa" },
+                  { top: "65%", left: "82%", size: 1.5, delay: "0.4s",  color: "#f0d060" },
+                  { top: "50%", left: "50%", size: 1.5, delay: "1.8s",  color: "#fff8a0" },
+                  { top: "88%", left: "55%", size: 2,   delay: "2.1s",  color: "#d4af37" },
+                  { top: "10%", left: "45%", size: 1.5, delay: "0.9s",  color: "#a78bfa" },
+                ].map((s, i) => (
+                  <div key={i} style={{ position: "absolute", top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: "50%", background: s.color, boxShadow: `0 0 ${s.size * 3}px ${s.color}`, animation: `profileSparkle 2.4s ease-in-out ${s.delay} infinite` }} />
+                ))}
+              </div>
+
+              {/* Header label */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,rgba(212,175,55,0.25),rgba(212,175,55,0.08))", border: "1px solid rgba(212,175,55,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✨</div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#d4af37", letterSpacing: "0.08em", textTransform: "uppercase" }}>Ngoại Hình</p>
+                  <p style={{ fontSize: 9.5, color: "rgba(212,175,55,0.4)", marginTop: 1 }}>Diện mạo &amp; hình thể</p>
+                </div>
+                {/* Accent line */}
+                <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(212,175,55,0.4) 0%, transparent 100%)", marginLeft: 4 }} />
+              </div>
+
+              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.82)", lineHeight: 1.8, whiteSpace: "pre-line", textShadow: "0 1px 8px rgba(212,175,55,0.08)" }}>
+                {sections.appearance}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ══ TRAITS — Tính cách glassmorphism tím ══ */}
+        {sections.traits.length > 0 && (
+          <div style={{ margin: "0 18px 14px", position: "relative" }}>
+            {/* Hào quang tím bên ngoài */}
+            <div style={{ position: "absolute", inset: -10, borderRadius: 26, background: "radial-gradient(ellipse at 50% 50%, rgba(147,51,234,0.22) 0%, rgba(108,92,231,0.08) 55%, transparent 80%)", pointerEvents: "none", zIndex: 0 }} />
+            <div style={{ position: "absolute", inset: -1.5, borderRadius: 21, background: "linear-gradient(135deg, rgba(167,139,250,0.5) 0%, rgba(212,175,55,0.25) 50%, rgba(147,51,234,0.5) 100%)", zIndex: 0 }} />
+
+            <div style={{ position: "relative", zIndex: 1, padding: "18px 18px", borderRadius: 20, background: "linear-gradient(155deg, rgba(25,15,55,0.94) 0%, rgba(12,8,32,0.97) 100%)", backdropFilter: "blur(16px)" }}>
+              {/* Sparkle dots */}
+              <div style={{ position: "absolute", inset: 0, borderRadius: 20, overflow: "hidden", pointerEvents: "none" }}>
+                {[
+                  { top: "15%", left: "90%", size: 2.5, delay: "0.3s",  color: "#c4b5fd" },
+                  { top: "70%", left: "6%",  size: 2,   delay: "1.1s",  color: "#a78bfa" },
+                  { top: "40%", left: "93%", size: 1.5, delay: "2s",    color: "#d4af37" },
+                  { top: "85%", left: "78%", size: 2,   delay: "0.6s",  color: "#c4b5fd" },
+                  { top: "8%",  left: "60%", size: 1.5, delay: "1.5s",  color: "#a78bfa" },
+                  { top: "55%", left: "20%", size: 1.5, delay: "2.4s",  color: "#d4af37" },
+                ].map((s, i) => (
+                  <div key={i} style={{ position: "absolute", top: s.top, left: s.left, width: s.size, height: s.size, borderRadius: "50%", background: s.color, boxShadow: `0 0 ${s.size * 3}px ${s.color}`, animation: `profileSparkle 2.8s ease-in-out ${s.delay} infinite` }} />
+                ))}
+              </div>
+
+              {/* Header label */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,rgba(167,139,250,0.25),rgba(108,92,231,0.1))", border: "1px solid rgba(167,139,250,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🔮</div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#a78bfa", letterSpacing: "0.08em", textTransform: "uppercase" }}>Tính Cách</p>
+                  <p style={{ fontSize: 9.5, color: "rgba(167,139,250,0.4)", marginTop: 1 }}>Bản ngã &amp; tâm hồn</p>
+                </div>
+                <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(167,139,250,0.4) 0%, transparent 100%)", marginLeft: 4 }} />
+              </div>
+
+              <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.82)", lineHeight: 1.8, whiteSpace: "pre-line", textShadow: "0 1px 8px rgba(108,92,231,0.1)" }}>
+                {sections.traits}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ══ FALLBACK — hiện khi không có section nào (nhân vật cũ) ══ */}
+        {!sections.appearance && !sections.traits && !sections.background && (
+          <div style={{ margin: "4px 18px 14px", padding: "16px", borderRadius: 16, background: "rgba(0,0,0,0.25)", border: "1px solid rgba(108,92,231,0.12)" }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>⊹ Linh Hồn</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.7 }}>Chưa có thông tin hồ sơ.</p>
+          </div>
+        )}
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 10, padding: "0 20px" }}>
@@ -555,7 +682,13 @@ export default function CharacterProfile({ character, onClose, onChat, creatorNa
         </div>
       )}
 
-      <style>{`@keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }`}</style>
+      <style>{`
+        @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+        @keyframes profileSparkle {
+          0%,100% { opacity: 0.15; transform: scale(0.7); }
+          50%      { opacity: 1;    transform: scale(1.6); }
+        }
+      `}</style>
     </div>
   );
 }
