@@ -448,8 +448,9 @@ interface Props {
 }
 
 export default function CharacterProfile({ character, onClose, onChat, onEdit, creatorName = "KISMET", viewerEmail, onViewCreator }: Props) {
-  const avatarKey = `kismet_char_avatar_${character.id}`;
-  const [avatarSrc, setAvatarSrc] = useState<string | null>(() => localStorage.getItem(avatarKey));
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(() =>
+    character.avatar.startsWith("http") ? character.avatar : (localStorage.getItem(`kismet_char_avatar_${character.id}`) || null)
+  );
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const code = encodeCharacter(character);
 
@@ -472,14 +473,20 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
     const file = e.target.files?.[0];
     if (!file) return;
     setAvatarUploading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = reader.result as string;
-      localStorage.setItem(avatarKey, b64);
-      setAvatarSrc(b64);
-      setAvatarUploading(false);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const { updateCharacterAvatar } = await import("@/lib/firebase");
+      const url = await updateCharacterAvatar(character.id, file);
+      setAvatarSrc(url);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = reader.result as string;
+        localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
+        setAvatarSrc(b64);
+      };
+      reader.readAsDataURL(file);
+    }
+    setAvatarUploading(false);
     e.target.value = "";
   };
 

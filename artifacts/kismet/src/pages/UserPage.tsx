@@ -4,12 +4,9 @@ import QRCode from "qrcode";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { Character } from "@/lib/types";
 
-/* ── helpers ── */
-const loadCharAvatar = (id: string) => localStorage.getItem(`kismet_char_avatar_${id}`);
-
 /* ── Char card 1:1 ── */
 function CharCard({ char, onClick }: { char: Character; onClick: () => void }) {
-  const src = loadCharAvatar(char.id);
+  const isUrl = char.avatar.startsWith("http");
   return (
     <button onClick={onClick} style={{ all: "unset", cursor: "pointer", display: "block", position: "relative", paddingTop: "100%", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(108,92,231,0.25)", background: "linear-gradient(135deg,#1a0a3e,#0c0520)", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", transition: "transform 0.18s, box-shadow 0.18s" }}
       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.04)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 28px rgba(108,92,231,0.4)"; }}
@@ -18,8 +15,8 @@ function CharCard({ char, onClick }: { char: Character; onClick: () => void }) {
         {/* Sparkle ambient */}
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 30%, rgba(108,92,231,0.25) 0%, transparent 70%)", pointerEvents: "none" }} />
         {/* Avatar */}
-        <div style={{ width: "52%", aspectRatio: "1/1", borderRadius: "50%", overflow: "hidden", background: src ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "min(28px, 10vw)", border: "2px solid rgba(108,92,231,0.5)", boxShadow: "0 0 16px rgba(108,92,231,0.4)", flexShrink: 0, position: "relative", zIndex: 1 }}>
-          {src ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : char.avatar}
+        <div style={{ width: "52%", aspectRatio: "1/1", borderRadius: "50%", overflow: "hidden", background: isUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "min(28px, 10vw)", border: "2px solid rgba(108,92,231,0.5)", boxShadow: "0 0 16px rgba(108,92,231,0.4)", flexShrink: 0, position: "relative", zIndex: 1 }}>
+          {isUrl ? <img src={char.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : char.avatar}
         </div>
         {/* Name */}
         <p style={{ fontSize: 12, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.3, maxWidth: "90%", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", position: "relative", zIndex: 1 }}>

@@ -24,19 +24,18 @@ interface Props {
 }
 
 /* ── helpers ── */
-const loadCharAvatar = (id: string) => localStorage.getItem(`kismet_char_avatar_${id}`);
 const loadUserAvatar = (email: string) => localStorage.getItem(`avatar_${email}`);
 const saveUserAvatar = (email: string, b64: string) => localStorage.setItem(`avatar_${email}`, b64);
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result as string); fr.readAsDataURL(file); });
 }
 
-/* ── CharAvatar ── */
-function CharAvatar({ id, emoji, size }: { id: string; emoji: string; size: number }) {
-  const src = loadCharAvatar(id);
+/* ── CharAvatar — avatar can be URL or emoji ── */
+function CharAvatar({ avatar, size }: { avatar: string; size: number }) {
+  const isUrl = avatar.startsWith("http");
   return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: src ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.48, flexShrink: 0, border: "2px solid rgba(108,92,231,0.35)", overflow: "hidden", boxShadow: "0 0 20px rgba(108,92,231,0.2)" }}>
-      {src ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : emoji}
+    <div style={{ width: size, height: size, borderRadius: "50%", background: isUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.48, flexShrink: 0, border: "2px solid rgba(108,92,231,0.35)", overflow: "hidden", boxShadow: "0 0 20px rgba(108,92,231,0.2)" }}>
+      {isUrl ? <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : avatar}
     </div>
   );
 }
@@ -89,7 +88,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
             {pending.map(char => (
               <div key={char.id} style={{ borderRadius: 18, border: "1px solid rgba(245,158,11,0.25)", background: "rgba(245,158,11,0.05)", overflow: "hidden" }}>
                 <div style={{ display: "flex", gap: 14, padding: "14px 16px", alignItems: "flex-start" }}>
-                  <CharAvatar id={char.id} emoji={char.avatar} size={52} />
+                  <CharAvatar avatar={char.avatar} size={52} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{char.name}</p>
@@ -426,7 +425,7 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
                     onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(108,92,231,0.06)"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}>
                     <button style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }} onClick={e => { e.stopPropagation(); setSelectedChar(char); }}>
-                      <CharAvatar id={char.id} emoji={char.avatar} size={44} />
+                      <CharAvatar avatar={char.avatar} size={44} />
                     </button>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{char.name}</p>
@@ -494,7 +493,7 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
 
 /* ── Forum card component ── */
 function ForumCard({ char, onChat, onProfile }: { char: Character; onChat: () => void; onProfile: () => void }) {
-  const src = loadCharAvatar(char.id);
+  const isUrl = char.avatar.startsWith("http");
   return (
     <div style={{ borderRadius: 20, border: "1px solid rgba(108,92,231,0.18)", background: "linear-gradient(180deg,rgba(28,26,44,0.8),rgba(15,13,26,0.9))", overflow: "hidden", transition: "border-color 0.2s" }}
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(108,92,231,0.4)"; }}
@@ -502,8 +501,8 @@ function ForumCard({ char, onChat, onProfile }: { char: Character; onChat: () =>
       {/* Card body */}
       <div style={{ padding: "18px 18px 14px", display: "flex", gap: 14, alignItems: "flex-start" }}>
         <button onClick={onProfile} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}>
-          <div style={{ width: 68, height: 68, borderRadius: 18, background: src ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, overflow: "hidden", border: "2px solid rgba(108,92,231,0.35)", boxShadow: "0 4px 16px rgba(108,92,231,0.3)" }}>
-            {src ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : char.avatar}
+          <div style={{ width: 68, height: 68, borderRadius: 18, background: isUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, overflow: "hidden", border: "2px solid rgba(108,92,231,0.35)", boxShadow: "0 4px 16px rgba(108,92,231,0.3)" }}>
+            {isUrl ? <img src={char.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : char.avatar}
           </div>
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -605,7 +604,7 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
             style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 16, border: "1px solid rgba(108,92,231,0.12)", background: "rgba(255,255,255,0.02)", cursor: "pointer", transition: "all 0.15s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(108,92,231,0.06)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}>
-            <CharAvatar id={char.id} emoji={char.avatar} size={48} />
+            <CharAvatar avatar={char.avatar} size={48} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{char.name}</p>

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useCharacters } from "@/hooks/useCharacters";
+import { uploadCharacterAvatar } from "@/lib/firebase";
 import { ArrowLeft, Loader2, Upload, Globe, Lock } from "lucide-react";
 
 interface Props { onBack: () => void; }
@@ -37,7 +38,7 @@ const focusOut = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =
   e.target.style.boxShadow   = "none";
 };
 
-function readFileAsBase64(file: File): Promise<string> {
+function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result as string); fr.readAsDataURL(file); });
 }
 
@@ -54,11 +55,12 @@ function Label({ text, sub }: { text: string; sub?: string }) {
 }
 
 export default function AddCharacterPage({ onBack }: Props) {
-  const { addCharacter } = useCharacters();
+  const { addCharacter, refetch } = useCharacters();
 
   /* Existing fields */
   const [name, setName]               = useState("");
-  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile]   = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [firstMessage, setFirstMessage] = useState("");
   const [slogan, setSlogan]           = useState("");
@@ -84,7 +86,8 @@ export default function AddCharacterPage({ onBack }: Props) {
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    setCustomAvatarUrl(await readFileAsBase64(file));
+    setAvatarFile(file);
+    setAvatarPreview(await readFileAsDataUrl(file));
     e.target.value = "";
   };
 
@@ -129,8 +132,14 @@ export default function AddCharacterPage({ onBack }: Props) {
         isPublic,
       });
 
-      if (customAvatarUrl && newId) {
-        localStorage.setItem(`kismet_char_avatar_${newId}`, customAvatarUrl);
+      if (avatarFile && newId) {
+        try {
+          const { updateCharacterAvatar } = await import("@/lib/firebase");
+          await updateCharacterAvatar(newId, avatarFile);
+          await refetch();
+        } catch {
+          /* avatar upload failed — character still created with emoji */
+        }
       }
       onBack();
     } catch {
@@ -161,10 +170,10 @@ export default function AddCharacterPage({ onBack }: Props) {
           <div>
             <Label text="Avatar nhân vật" />
             <button type="button" onClick={() => fileRef.current?.click()}
-              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 16px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.35)", background: customAvatarUrl ? "rgba(108,92,231,0.10)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", boxSizing: "border-box" }}>
-              {customAvatarUrl ? (
+              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 16px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.35)", background: avatarPreview ? "rgba(108,92,231,0.10)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", boxSizing: "border-box" }}>
+              {avatarPreview ? (
                 <>
-                  <img src={customAvatarUrl} alt="avatar" style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(108,92,231,0.5)", flexShrink: 0 }} />
+                  <img src={avatarPreview} alt="avatar" style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(108,92,231,0.5)", flexShrink: 0 }} />
                   <div style={{ flex: 1, textAlign: "left" }}>
                     <p style={{ fontSize: 13, color: "#c4b5fd", fontWeight: 600 }}>Ảnh đã tải lên ✓</p>
                     <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Nhấn để thay ảnh khác</p>

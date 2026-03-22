@@ -34,8 +34,8 @@ interface PhoneData {
 /* ═══════════════════════════════════════════════════
    LOCALSTORAGE HELPERS
 ═══════════════════════════════════════════════════ */
-const loadCharAvatar = (id: string) => localStorage.getItem(`kismet_char_avatar_${id}`);
-const saveCharAvatar = (id: string, b64: string) => localStorage.setItem(`kismet_char_avatar_${id}`, b64);
+const getCharAvatarUrl = (character: { id: string; avatar: string }) =>
+  character.avatar.startsWith("http") ? character.avatar : (localStorage.getItem(`kismet_char_avatar_${character.id}`) || null);
 const loadUserAvatar = (email: string) => localStorage.getItem(`avatar_${email}`);
 const saveUserAvatar = (email: string, b64: string) => localStorage.setItem(`avatar_${email}`, b64);
 
@@ -748,10 +748,12 @@ export default function ChatPage({ character, onBack }: Props) {
   const { keys, selectedModel, loading: keysLoading } = useKeys();
   const [safeMode, setSafeMode] = useState(true);
 
-  /* Quyền chủ sở hữu */
-  const viewerEmail = user?.email || user?.uid || "";
-  const isOwner = !!viewerEmail && (
-    viewerEmail === character.createdBy || viewerEmail === ADMIN_EMAIL
+  /* Quyền chủ sở hữu — createdBy stores uid, check both uid and email */
+  const isOwner = !!user && (
+    user.uid === character.createdBy ||
+    user.email === character.createdBy ||
+    user.email === ADMIN_EMAIL ||
+    user.uid === ADMIN_EMAIL
   );
 
   /* ── Memories — load & live-sync ── */
@@ -802,7 +804,7 @@ export default function ChatPage({ character, onBack }: Props) {
   /* ── load initial data ── */
   useEffect(() => {
     if (!user) return;
-    setCharAvatarUrl(loadCharAvatar(character.id));
+    setCharAvatarUrl(getCharAvatarUrl(character));
     setUserAvatarUrl(loadUserAvatar(email));
     setUserAvatarDraft(loadUserAvatar(email));
     const p = loadProfile(user.uid);
@@ -860,8 +862,15 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
 
   const handleCharAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const b64 = await readFileAsBase64(file);
-    saveCharAvatar(character.id, b64); setCharAvatarUrl(b64);
+    try {
+      const { updateCharacterAvatar } = await import("@/lib/firebase");
+      const url = await updateCharacterAvatar(character.id, file);
+      setCharAvatarUrl(url);
+    } catch {
+      const b64 = await readFileAsBase64(file);
+      localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
+      setCharAvatarUrl(b64);
+    }
     e.target.value = "";
   };
 
@@ -913,10 +922,12 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
         </button>
 
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          {/* Camera button to upload char avatar */}
-          <button onClick={() => charFileRef.current?.click()} title="Thay ảnh nhân vật" style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "rgba(167,139,250,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-            <Camera size={14} />
-          </button>
+          {/* Camera button — only for character owner/admin */}
+          {isOwner && (
+            <button onClick={() => charFileRef.current?.click()} title="Thay ảnh nhân vật" style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "rgba(167,139,250,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <Camera size={14} />
+            </button>
+          )}
           <button onClick={() => setShowClearConfirm(true)} title="Xoá lịch sử" style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "rgba(167,139,250,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <Trash2 size={14} />
           </button>

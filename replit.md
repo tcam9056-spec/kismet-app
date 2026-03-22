@@ -22,6 +22,7 @@ Full-stack AI character chat app with:
 - Users can create custom characters (private)
 - `createdBy` = user UID (Firebase). Ownership check compares uid, not email.
 - Character privacy: Only owner sees "Linh Hồn & Thế Giới" section + Edit button; others see only Ngoại hình & Tính cách.
+- **Avatar storage**: Character avatars are uploaded to **Firebase Storage** (`avatars/characters/{id}`) and the permanent download URL is stored in the Firestore `avatar` field. All users see the same image URL. If `avatar` starts with `http`, it's a URL (Firebase Storage); otherwise it's an emoji fallback. Upload restricted to character owner or admin only.
 
 ### Social / Creator Features
 - **Creator ID**: "Tạo bởi {creatorName}" in CharacterProfile is a clickable hyperlink navigating to creator's UserPage.
