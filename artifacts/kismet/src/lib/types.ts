@@ -29,17 +29,13 @@ export type GeminiModel =
   | "gemini-2.5-flash"
   | "gemini-2.5-pro"
   | "gemini-3.1-flash"
-  | "gemini-3.1-pro"
-  | "gemini-2.0-flash"
-  | "gemini-1.5-flash";
+  | "gemini-3.1-pro";
 
 export const GEMINI_MODELS: { id: GeminiModel; label: string; badge?: string }[] = [
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", badge: "Nhanh" },
-  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", badge: "Thông minh" },
+  { id: "gemini-2.5-pro",   label: "Gemini 2.5 Pro",   badge: "Thông minh" },
   { id: "gemini-3.1-flash", label: "Gemini 3.1 Flash", badge: "Siêu nhanh" },
-  { id: "gemini-3.1-pro", label: "Gemini 3.1 Pro", badge: "Siêu thông minh" },
-  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", badge: "Ổn định" },
-  { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash", badge: "Dự phòng" },
+  { id: "gemini-3.1-pro",   label: "Gemini 3.1 Pro",   badge: "Siêu thông minh" },
 ];
 
 export const ADMIN_EMAIL = "tcam9056@gmail.com";

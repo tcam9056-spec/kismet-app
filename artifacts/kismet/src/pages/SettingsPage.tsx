@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useKeys } from "@/hooks/useKeys";
 import { GEMINI_MODELS } from "@/lib/types";
-import { listModels, MODEL_FALLBACKS } from "@/lib/gemini";
+import { testModel } from "@/lib/gemini";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders, FlaskConical, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders, FlaskConical, CheckCircle2, XCircle } from "lucide-react";
 
-type ModelStatus = { status: "ok" | "fallback" | "error"; resolvedTo?: string };
+type ModelStatus = "ok" | "error" | "checking";
 
 
 const MAX_TOKENS_KEY = "kismet_maxTokens";
@@ -71,25 +71,20 @@ export default function SettingsPage({ onBack }: Props) {
   const checkModels = async () => {
     if (localKeys.length === 0) return;
     setCheckingModels(true);
-    setModelStatuses({});
     const apiKey = localKeys[0];
-    const available = await listModels(apiKey);
+    /* Mark all as "checking" first */
+    const init: Record<string, ModelStatus> = {};
+    for (const m of GEMINI_MODELS) init[m.id] = "checking";
+    setModelStatuses({ ...init });
+    /* Test each model in parallel via direct API call */
+    const results = await Promise.all(
+      GEMINI_MODELS.map(async (m) => {
+        const ok = await testModel(apiKey, m.id);
+        return { id: m.id, status: ok ? "ok" : "error" } as { id: string; status: ModelStatus };
+      })
+    );
     const statuses: Record<string, ModelStatus> = {};
-    for (const m of GEMINI_MODELS) {
-      if (available.includes(m.id)) {
-        statuses[m.id] = { status: "ok", resolvedTo: m.id };
-      } else {
-        const fallbacks = MODEL_FALLBACKS[m.id] || [];
-        const found = fallbacks.find(f => available.includes(f));
-        if (found) {
-          statuses[m.id] = { status: "fallback", resolvedTo: found };
-        } else if (available.length === 0) {
-          statuses[m.id] = { status: "error" };
-        } else {
-          statuses[m.id] = { status: "fallback", resolvedTo: available.find(a => a.includes("flash")) || available[0] };
-        }
-      }
-    }
+    for (const r of results) statuses[r.id] = r.status;
     setModelStatuses(statuses);
     setCheckingModels(false);
   };
@@ -383,28 +378,21 @@ export default function SettingsPage({ onBack }: Props) {
                       <div style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", marginTop: 2, fontFamily: "monospace" }}>
                         models/{m.id}
                       </div>
-                      {st?.status === "fallback" && st.resolvedTo && (
-                        <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
-                          <AlertCircle size={9} />
-                          Auto-fallback → <span style={{ fontFamily: "monospace" }}>{st.resolvedTo}</span>
-                        </div>
-                      )}
-                      {st?.status === "error" && (
-                        <div style={{ fontSize: 10, color: "#ef4444", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
-                          <AlertCircle size={9} />
-                          Không tìm thấy model phù hợp
-                        </div>
-                      )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                      {st?.status === "ok" && <CheckCircle2 size={14} style={{ color: "#22c55e" }} />}
-                      {st?.status === "fallback" && <AlertCircle size={14} style={{ color: "#f59e0b" }} />}
-                      {st?.status === "error" && <AlertCircle size={14} style={{ color: "#ef4444" }} />}
-                      {!st && Object.keys(modelStatuses).length === 0 && isSelected && (
-                        <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
+                      {/* Status indicator */}
+                      {st === "checking" && (
+                        <Loader2 size={14} style={{ color: "rgba(167,139,250,0.5)", animation: "spin 1s linear infinite" }} />
                       )}
-                      {!st && Object.keys(modelStatuses).length > 0 && (
-                        <HelpCircle size={13} style={{ color: "rgba(255,255,255,0.15)" }} />
+                      {st === "ok" && (
+                        <CheckCircle2 size={14} style={{ color: "#22c55e" }} />
+                      )}
+                      {st === "error" && (
+                        <XCircle size={14} style={{ color: "#ef4444" }} />
+                      )}
+                      {/* Selected checkmark (when no test has been run) */}
+                      {!st && isSelected && (
+                        <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
                       )}
                     </div>
                   </button>
@@ -412,11 +400,9 @@ export default function SettingsPage({ onBack }: Props) {
               })}
             </div>
 
-            {Object.keys(modelStatuses).length > 0 && (
+            {Object.keys(modelStatuses).length > 0 && !checkingModels && (
               <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 10, lineHeight: 1.5, paddingLeft: 4 }}>
-                <CheckCircle2 size={8} style={{ display: "inline", color: "#22c55e", marginRight: 4 }} />Khả dụng trực tiếp
-                &nbsp;&nbsp;
-                <AlertCircle size={8} style={{ display: "inline", color: "#f59e0b", marginRight: 4 }} />Tự động chuyển sang model thay thế khi gọi
+                Kết quả test trực tiếp với API Key của bạn
               </p>
             )}
           </div>
