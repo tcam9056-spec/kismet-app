@@ -958,7 +958,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
 
   /* ── render ── */
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#121212", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#1a1a1a", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
 
       {/* ══ COMPACT HEADER ══ */}
       <div style={{ background: "linear-gradient(180deg,#13101f,#0f0d1a)", borderBottom: "1px solid rgba(108,92,231,0.18)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>

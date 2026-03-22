@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Settings, Plus, Loader2, Globe, MessageCircle, User,
-  Search, CheckCircle, XCircle, Clock, Wand2, X
+  Camera, Search, CheckCircle, XCircle, Clock, Wand2, X
 } from "lucide-react";
 import { decodeCharacter } from "./CharacterProfile";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -254,7 +254,7 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
   }, [characters]);
 
   const filtered = query.trim()
-    ? characters.filter(c => c.name.toLowerCase().includes(query.toLowerCase()) || c.slogan.toLowerCase().includes(query.toLowerCase()))
+    ? characters.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
     : characters;
 
   /* Separate public (approved) and private */
