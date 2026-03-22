@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Settings, Plus, Loader2, Globe, MessageCircle, User,
-  Camera, Search, CheckCircle, XCircle, Clock, Wand2, X
+  Pencil, Search, CheckCircle, XCircle, Clock, Wand2, X
 } from "lucide-react";
 import { decodeCharacter } from "./CharacterProfile";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -9,9 +9,10 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCharacters } from "@/hooks/useCharacters";
 import type { Character } from "@/lib/types";
-import { ADMIN_EMAIL } from "@/lib/types";
 import CharacterProfile from "./CharacterProfile";
-import { fetchCreatorDisplayNames } from "@/hooks/useUserProfile";
+import { fetchCreatorDisplayNames, fetchCreatorRoles, invalidateProfileCache } from "@/hooks/useUserProfile";
+import { UserBadge } from "@/components/UserBadge";
+import type { UserRole } from "@/components/UserBadge";
 
 type Tab = "all" | "messages" | "profile";
 
@@ -244,13 +245,20 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
   const [query, setQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [creatorNames, setCreatorNames] = useState<Map<string, string>>(new Map());
+  const [creatorRoles, setCreatorRoles] = useState<Map<string, UserRole>>(new Map());
   const handleImported = useCallback((name: string) => { setShowImport(false); }, []);
 
-  /* Fetch creator display names whenever characters change */
+  /* Fetch creator display names + roles whenever characters change */
   useEffect(() => {
     if (characters.length === 0) return;
     const uids = characters.map(c => c.createdBy).filter(Boolean);
-    fetchCreatorDisplayNames(uids).then(map => setCreatorNames(map));
+    Promise.all([
+      fetchCreatorDisplayNames(uids),
+      fetchCreatorRoles(uids),
+    ]).then(([names, roles]) => {
+      setCreatorNames(names);
+      setCreatorRoles(roles);
+    });
   }, [characters]);
 
   const filtered = query.trim()
@@ -286,7 +294,8 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {publicChars.map(char => (
-                  <ForumCard key={char.id} char={char} onChat={() => onChat(char)} onProfile={() => setSelectedChar(char)} />
+                  <ForumCard key={char.id} char={char} onChat={() => onChat(char)} onProfile={() => setSelectedChar(char)}
+                    creatorRole={creatorRoles.get(char.createdBy)} />
                 ))}
               </div>
             </div>
@@ -372,7 +381,7 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
 }
 
 /* ── Forum card component ── */
-function ForumCard({ char, onChat, onProfile }: { char: Character; onChat: () => void; onProfile: () => void }) {
+function ForumCard({ char, onChat, onProfile, creatorRole }: { char: Character; onChat: () => void; onProfile: () => void; creatorRole?: UserRole }) {
   const isUrl = char.avatar.startsWith("http");
   return (
     <div style={{ borderRadius: 20, border: "1px solid rgba(108,92,231,0.18)", background: "linear-gradient(180deg,rgba(28,26,44,0.8),rgba(15,13,26,0.9))", overflow: "hidden", transition: "border-color 0.2s" }}
@@ -387,7 +396,10 @@ function ForumCard({ char, onChat, onProfile }: { char: Character; onChat: () =>
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>{char.name}</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>{char.name}</h3>
+              {creatorRole && <UserBadge role={creatorRole} size="sm" />}
+            </div>
             <span style={{ fontSize: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399", borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600 }}>
               ✦ Công khai
             </span>
@@ -398,7 +410,14 @@ function ForumCard({ char, onChat, onProfile }: { char: Character; onChat: () =>
           {char.tags && char.tags.length > 0 ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}>
               {char.tags.slice(0, 4).map(tag => (
-                <span key={tag} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 12, background: tag.includes("18+") || tag === "Bạo lực" ? "rgba(239,68,68,0.1)" : "rgba(108,92,231,0.1)", border: `1px solid ${tag.includes("18+") || tag === "Bạo lực" ? "rgba(239,68,68,0.25)" : "rgba(108,92,231,0.25)"}`, color: tag.includes("18+") || tag === "Bạo lực" ? "#f87171" : "rgba(167,139,250,0.7)", fontWeight: 500 }}>
+                <span key={tag} style={{
+                  fontSize: 10, padding: "2px 8px", borderRadius: 12,
+                  background: tag.includes("18+") || tag === "Bạo lực" ? "rgba(239,68,68,0.1)" : "rgba(108,92,231,0.1)",
+                  border: `1px solid ${tag.includes("18+") || tag === "Bạo lực" ? "rgba(239,68,68,0.25)" : "rgba(108,92,231,0.25)"}`,
+                  color: tag.includes("18+") || tag === "Bạo lực" ? "#f87171" : "rgba(167,139,250,0.7)",
+                  fontWeight: 500,
+                  boxShadow: tag.includes("18+") || tag === "Bạo lực" ? "0 0 6px rgba(239,68,68,0.2)" : "0 0 6px rgba(108,92,231,0.2)",
+                }}>
                   {tag}
                 </span>
               ))}
@@ -533,9 +552,23 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
           const d = snap.data() as ProfileData;
           setDraft(d);
           localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(d));
+          /* Sync avatar from Firestore → localStorage if not already cached */
+          if (d.avatarDataUrl && !ua) {
+            saveUserAvatar(email, d.avatarDataUrl);
+            setAvatarUrl(d.avatarDataUrl);
+            setAvatarDraft(d.avatarDataUrl);
+          }
         } else {
           const raw = localStorage.getItem(`kismet_profile_${user.uid}`);
-          if (raw) setDraft(JSON.parse(raw));
+          if (raw) {
+            const parsed = JSON.parse(raw) as ProfileData;
+            setDraft(parsed);
+            if (parsed.avatarDataUrl && !ua) {
+              saveUserAvatar(email, parsed.avatarDataUrl);
+              setAvatarUrl(parsed.avatarDataUrl);
+              setAvatarDraft(parsed.avatarDataUrl);
+            }
+          }
         }
       } catch {
         const raw = localStorage.getItem(`kismet_profile_${user.uid}`);
@@ -555,20 +588,24 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
     if (!user) return;
     setSaving(true);
     try {
-      if (avatarDraft !== avatarUrl) {
-        if (avatarDraft) { saveUserAvatar(email, avatarDraft); setAvatarUrl(avatarDraft); }
-        else { localStorage.removeItem(`avatar_${email}`); setAvatarUrl(null); }
+      /* Determine final avatar — never erase an existing one */
+      const finalAvatar = avatarDraft || avatarUrl;
+      if (finalAvatar && finalAvatar !== avatarUrl) {
+        saveUserAvatar(email, finalAvatar);
+        setAvatarUrl(finalAvatar);
       }
       const ref = doc(db, "users", user.uid, "profile", "data");
       const saveData: ProfileData = { ...draft };
-      if (avatarDraft) saveData.avatarDataUrl = avatarDraft;
+      if (finalAvatar) saveData.avatarDataUrl = finalAvatar;
       await setDoc(ref, { ...saveData, updatedAt: serverTimestamp() }, { merge: true });
       localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(saveData));
+      invalidateProfileCache(user.uid);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
       const saveData: ProfileData = { ...draft };
-      if (avatarDraft) saveData.avatarDataUrl = avatarDraft;
+      const finalAvatar = avatarDraft || avatarUrl;
+      if (finalAvatar) saveData.avatarDataUrl = finalAvatar;
       localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(saveData));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -616,15 +653,21 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
           <UserAvatar src={avatarDraft} size={88} />
           <button onClick={() => fileRef.current?.click()}
             style={{ position: "absolute", bottom: 4, right: 4, width: 28, height: 28, borderRadius: "50%", border: "2px solid #0a0a0f", background: "#6c5ce7", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
-            <Camera size={13} />
+            <Pencil size={11} />
           </button>
         </div>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
         <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginTop: 10, marginBottom: 2 }}>
           {draft.displayName || email.split("@")[0]}
         </p>
-        <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)" }}>{email}</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, justifyContent: "center", flexWrap: "wrap" }}>
+        <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)", marginBottom: 6 }}>{email}</p>
+        {/* Role badge */}
+        {(isAdmin || (draft as ProfileData & { role?: string }).role) && (
+          <div style={{ marginBottom: 8 }}>
+            <UserBadge role={isAdmin ? "admin" : (draft as ProfileData & { role?: string }).role as UserRole} size="md" />
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 10px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)" }}>
             <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 600 }}>✦ Hồ sơ lưu cloud · Đồng bộ đa thiết bị</span>
           </div>

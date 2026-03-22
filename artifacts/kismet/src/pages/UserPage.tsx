@@ -3,6 +3,7 @@ import { ArrowLeft, Share2, Download, Loader2, QrCode, Link2, X } from "lucide-r
 import QRCode from "qrcode";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { Character } from "@/lib/types";
+import { UserBadge } from "@/components/UserBadge";
 
 /* ── Char card 1:1 ── */
 function CharCard({ char, onClick }: { char: Character; onClick: () => void }) {
@@ -120,9 +121,16 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
 
       {/* ── PROFILE INFO ── */}
       <div style={{ paddingTop: 60, paddingBottom: 8, textAlign: "center", paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 4, textShadow: "0 0 24px rgba(108,92,231,0.5)" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 6, textShadow: "0 0 24px rgba(108,92,231,0.5)" }}>
           {displayName}
         </h1>
+
+        {/* Role badge */}
+        {profile?.role && (
+          <div style={{ marginBottom: 8 }}>
+            <UserBadge role={profile.role} size="md" />
+          </div>
+        )}
 
         {isSelf && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, padding: "3px 12px", borderRadius: 20, background: "rgba(108,92,231,0.12)", border: "1px solid rgba(108,92,231,0.3)", color: "#a78bfa", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 10 }}>

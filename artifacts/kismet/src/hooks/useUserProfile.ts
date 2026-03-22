@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Character } from "@/lib/types";
+import type { UserRole } from "@/components/UserBadge";
 
 export interface UserProfileData {
   displayName: string;
@@ -12,6 +13,7 @@ export interface UserProfileData {
   avatarDataUrl?: string;
   socialLinks?: { label: string; url: string }[];
   coverDataUrl?: string;
+  role?: UserRole;
 }
 
 const profileCache = new Map<string, UserProfileData>();
@@ -32,12 +34,26 @@ export async function fetchUserProfile(uid: string): Promise<UserProfileData | n
   }
 }
 
+export function invalidateProfileCache(uid: string) {
+  profileCache.delete(uid);
+}
+
 export async function fetchCreatorDisplayNames(uids: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   const unique = [...new Set(uids)];
   await Promise.all(unique.map(async uid => {
     const p = await fetchUserProfile(uid);
     if (p?.displayName) map.set(uid, p.displayName);
+  }));
+  return map;
+}
+
+export async function fetchCreatorRoles(uids: string[]): Promise<Map<string, UserRole>> {
+  const map = new Map<string, UserRole>();
+  const unique = [...new Set(uids)];
+  await Promise.all(unique.map(async uid => {
+    const p = await fetchUserProfile(uid);
+    if (p?.role) map.set(uid, p.role);
   }));
   return map;
 }
