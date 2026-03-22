@@ -5,6 +5,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  updateDoc,
   query,
   where,
   serverTimestamp,
@@ -12,18 +13,23 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Character } from "@/lib/types";
-import { DEFAULT_CHARACTERS } from "@/lib/types";
+import { DEFAULT_CHARACTERS, ADMIN_EMAIL } from "@/lib/types";
 
 export function useCharacters() {
   const { user } = useAuth();
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [pending, setPending] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const fetchCharacters = async () => {
     if (!user) return;
     setLoading(true);
 
+    /* All public chars (filter approval in JS to avoid composite index) */
     const publicQuery = query(collection(db, "characters"), where("isPublic", "==", true));
+    /* User's own chars */
     const userQuery = query(collection(db, "characters"), where("createdBy", "==", user.uid));
 
     const [publicSnap, userSnap] = await Promise.all([getDocs(publicQuery), getDocs(userQuery)]);
@@ -32,17 +38,31 @@ export function useCharacters() {
     const all: Character[] = [];
 
     publicSnap.docs.forEach((d) => {
-      seen.add(d.id);
-      all.push({ id: d.id, ...d.data() } as Character);
+      const c = { id: d.id, ...d.data() } as Character;
+      /* Only show approved public chars to regular users */
+      if (c.isApproved === true || isAdmin) {
+        seen.add(d.id);
+        all.push(c);
+      }
     });
 
     userSnap.docs.forEach((d) => {
-      if (!seen.has(d.id)) all.push({ id: d.id, ...d.data() } as Character);
+      if (!seen.has(d.id)) {
+        all.push({ id: d.id, ...d.data() } as Character);
+      }
     });
 
     if (all.length === 0) {
       await seedDefaultCharacters(user.uid);
       return fetchCharacters();
+    }
+
+    /* Pending approval list (for admin only) */
+    if (isAdmin) {
+      const pendingChars = publicSnap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Character))
+        .filter(c => c.isApproved !== true);
+      setPending(pendingChars);
     }
 
     setCharacters(all);
@@ -58,23 +78,48 @@ export function useCharacters() {
 
   useEffect(() => { if (user) fetchCharacters(); }, [user]);
 
-  /* Returns new character ID so caller can save avatar */
+  /** Returns new character ID so caller can save avatar */
   const addCharacter = async (char: Omit<Character, "id" | "createdBy">): Promise<string> => {
     if (!user) return "";
     const ref = collection(db, "characters");
+    /* Public chars need admin approval; private chars are immediately available */
+    const isApproved = char.isPublic ? isAdmin : true;
     const docRef = await addDoc(ref, {
       ...char,
+      isApproved,
       createdBy: user.uid,
       createdAt: serverTimestamp(),
     });
-    setCharacters((prev) => [...prev, { id: docRef.id, ...char, createdBy: user.uid }]);
+    /* Only show in list if approved */
+    if (isApproved) {
+      setCharacters((prev) => [...prev, { id: docRef.id, ...char, isApproved, createdBy: user.uid }]);
+    } else {
+      setPending((prev) => [...prev, { id: docRef.id, ...char, isApproved, createdBy: user.uid }]);
+    }
     return docRef.id;
+  };
+
+  const approveCharacter = async (id: string) => {
+    if (!isAdmin) return;
+    await updateDoc(doc(db, "characters", id), { isApproved: true });
+    const approved = pending.find(c => c.id === id);
+    if (approved) {
+      setPending(prev => prev.filter(c => c.id !== id));
+      setCharacters(prev => [...prev, { ...approved, isApproved: true }]);
+    }
+  };
+
+  const rejectCharacter = async (id: string) => {
+    if (!isAdmin) return;
+    await updateDoc(doc(db, "characters", id), { isPublic: false, isApproved: false });
+    setPending(prev => prev.filter(c => c.id !== id));
   };
 
   const removeCharacter = async (id: string) => {
     await deleteDoc(doc(db, "characters", id));
     setCharacters((prev) => prev.filter((c) => c.id !== id));
+    setPending((prev) => prev.filter((c) => c.id !== id));
   };
 
-  return { characters, loading, addCharacter, removeCharacter, refetch: fetchCharacters };
+  return { characters, pending, loading, isAdmin, addCharacter, approveCharacter, rejectCharacter, removeCharacter, refetch: fetchCharacters };
 }

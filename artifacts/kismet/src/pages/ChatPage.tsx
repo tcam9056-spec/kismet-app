@@ -6,6 +6,7 @@ import {
 import { useChat } from "@/hooks/useChat";
 import { useKeys } from "@/hooks/useKeys";
 import { useAuth } from "@/contexts/AuthContext";
+import { geminiRaw } from "@/lib/gemini";
 import type { Character, GeminiModel } from "@/lib/types";
 
 /* ═══════════════════════════════════════════════════
@@ -66,22 +67,10 @@ function readFileAsBase64(file: File): Promise<string> {
 }
 
 /* ═══════════════════════════════════════════════════
-   GEMINI HELPER (for phone & gift generation)
+   GEMINI JSON HELPER (phone & gift generation)
 ═══════════════════════════════════════════════════ */
 async function geminiJSON<T>(apiKey: string, model: string, prompt: string): Promise<T> {
-  let mId = model || "gemini-2.5-flash";
-  if (!mId.startsWith("models/")) mId = `models/${mId}`;
-  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.8, maxOutputTokens: 2048 },
-    }),
-  });
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const text = await geminiRaw(apiKey, model, prompt, 2048);
   const match = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/(\{[\s\S]*\})/);
   if (!match) throw new Error("Không parse được JSON từ AI");
   return JSON.parse(match[1]);
@@ -110,33 +99,32 @@ function UserAvatar({ src, size }: { src: string | null; size: number }) {
 ═══════════════════════════════════════════════════ */
 function CharProfileModal({ character, charAvatarUrl, onClose }: { character: Character; charAvatarUrl: string | null; onClose: () => void }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300, backdropFilter: "blur(10px)" }} onClick={onClose}>
-      <div style={{ background: "linear-gradient(180deg,#1c1a2e,#0f0d1a)", border: "1px solid rgba(108,92,231,0.25)", borderTopLeftRadius: 28, borderTopRightRadius: 28, width: "100%", maxWidth: 480, maxHeight: "90dvh", overflowY: "auto", paddingBottom: 40 }} onClick={e => e.stopPropagation()}>
-        {/* Banner gradient */}
-        <div style={{ height: 90, background: "linear-gradient(135deg,#1a0a3e,#4c1d95,#6c5ce7)", borderTopLeftRadius: 28, borderTopRightRadius: 28, position: "relative" }}>
-          <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(0,0,0,0.3)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }} onClick={onClose}>
+      <div style={{ background: "linear-gradient(180deg,#1c1a2e,#0f0d1a)", border: "1px solid rgba(108,92,231,0.25)", borderTopLeftRadius: 28, borderTopRightRadius: 28, width: "100%", maxWidth: 480, maxHeight: "88dvh", overflowY: "auto", paddingBottom: 40 }} onClick={e => e.stopPropagation()}>
+        {/* Header: avatar + name + close — no empty banner */}
+        <div style={{ padding: "22px 20px 16px", display: "flex", alignItems: "center", gap: 16, borderBottom: "1px solid rgba(108,92,231,0.12)" }}>
+          <CharAvatar src={charAvatarUrl} emoji={character.avatar} size={68} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 3, lineHeight: 1.2 }}>{character.name}</h2>
+            <p style={{ fontSize: 12, color: "#a78bfa", fontStyle: "italic", lineHeight: 1.4 }}>"{character.slogan}"</p>
+            {character.isPublic && (
+              <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399", borderRadius: 20, padding: "1px 8px", fontWeight: 600 }}>✦ Công khai</span>
+            )}
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             <X size={14} />
           </button>
         </div>
-        {/* Avatar */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: -44 }}>
-          <div style={{ border: "4px solid #0f0d1a", borderRadius: "50%", background: "#0f0d1a" }}>
-            <CharAvatar src={charAvatarUrl} emoji={character.avatar} size={88} />
-          </div>
-        </div>
-        {/* Info */}
-        <div style={{ padding: "14px 24px 0" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, textAlign: "center", marginBottom: 4 }}>{character.name}</h2>
-          <p style={{ fontSize: 12, color: "#a78bfa", fontStyle: "italic", textAlign: "center", marginBottom: 20 }}>"{character.slogan}"</p>
 
+        {/* Info sections */}
+        <div style={{ padding: "18px 20px 0" }}>
           {[
             { label: "✦ Bối cảnh & Tính cách", value: character.personality },
             { label: "⚡ Lời nguyền", value: character.curse },
-            { label: "🌐 Trạng thái", value: character.isPublic ? "Nhân vật công khai" : "Nhân vật riêng tư" },
           ].map(({ label, value }) => (
-            <div key={label} style={{ marginBottom: 16, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(108,92,231,0.12)" }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label}</p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", lineHeight: 1.6 }}>{value}</p>
+            <div key={label} style={{ marginBottom: 14, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)" }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label}</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.65 }}>{value}</p>
             </div>
           ))}
         </div>

@@ -173,23 +173,32 @@ export default function AddCharacterPage({ onBack }: Props) {
           </div>
 
           {/* ── Public / Private toggle ── */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderRadius: 14, border: "1px solid rgba(108,92,231,0.15)", background: "rgba(255,255,255,0.02)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {isPublic ? <Globe size={16} style={{ color: "#34d399" }} /> : <Lock size={16} style={{ color: "rgba(167,139,250,0.5)" }} />}
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: isPublic ? "#34d399" : "rgba(255,255,255,0.7)" }}>
-                  {isPublic ? "Công khai" : "Riêng tư"}
-                </p>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
-                  {isPublic ? "Cộng đồng có thể chat cùng nhân vật này" : "Chỉ mình bạn thấy và sử dụng"}
+          <div style={{ borderRadius: 14, border: `1px solid ${isPublic ? "rgba(245,158,11,0.25)" : "rgba(108,92,231,0.15)"}`, background: isPublic ? "rgba(245,158,11,0.04)" : "rgba(255,255,255,0.02)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {isPublic ? <Globe size={16} style={{ color: "#34d399" }} /> : <Lock size={16} style={{ color: "rgba(167,139,250,0.5)" }} />}
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: isPublic ? "#34d399" : "rgba(255,255,255,0.7)" }}>
+                    {isPublic ? "Công khai" : "Riêng tư"}
+                  </p>
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+                    {isPublic ? "Gửi lên cộng đồng để Admin duyệt" : "Chỉ mình bạn thấy và sử dụng"}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setIsPublic(v => !v)}
+                style={{ width: 48, height: 26, borderRadius: 13, border: "none", background: isPublic ? "#22c55e" : "rgba(255,255,255,0.12)", cursor: "pointer", position: "relative", transition: "background 0.3s", flexShrink: 0 }}>
+                <div style={{ position: "absolute", top: 3, left: isPublic ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.3s", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }} />
+              </button>
+            </div>
+            {isPublic && (
+              <div style={{ padding: "10px 16px 12px", borderTop: "1px solid rgba(245,158,11,0.15)", background: "rgba(245,158,11,0.06)", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>⏳</span>
+                <p style={{ fontSize: 11, color: "rgba(245,158,11,0.8)", lineHeight: 1.5 }}>
+                  Nhân vật công khai sẽ ở trạng thái <strong>chờ duyệt</strong> cho đến khi Admin phê duyệt. Chỉ sau đó mới hiển thị với cộng đồng.
                 </p>
               </div>
-            </div>
-            {/* Toggle switch */}
-            <button type="button" onClick={() => setIsPublic(v => !v)}
-              style={{ width: 48, height: 26, borderRadius: 13, border: "none", background: isPublic ? "#22c55e" : "rgba(255,255,255,0.12)", cursor: "pointer", position: "relative", transition: "background 0.3s", flexShrink: 0 }}>
-              <div style={{ position: "absolute", top: 3, left: isPublic ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.3s", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }} />
-            </button>
+            )}
           </div>
 
           {error && (

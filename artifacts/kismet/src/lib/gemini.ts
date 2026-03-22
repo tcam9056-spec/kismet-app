@@ -7,69 +7,73 @@ export async function sendMessage(
   model: GeminiModel,
   systemPrompt: string,
   history: Message[],
-  userMessage: string
+  userMessage: string,
+  maxOutputTokens: number = 2048
 ): Promise<string> {
-  // Tui gom gọn tên model để điện thoại không bẻ dòng được
-  let mId = model?.id || "models/gemini-2.5-flash";
-  if (!mId.startsWith('models/')) mId = `models/${mId}`;
+  /* model is a plain string like "gemini-2.5-flash" */
+  let mId = (typeof model === "string" && model.trim()) ? model.trim() : "gemini-2.5-flash";
+  if (!mId.startsWith("models/")) mId = `models/${mId}`;
 
-  // Cái link này dù có bị xuống hàng vẫn chạy tốt bà nhé
   const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
 
   const contents = history.map(msg => ({
     role: msg.role === "user" ? "user" : "model",
     parts: [{ text: msg.content }],
   }));
-
   contents.push({ role: "user", parts: [{ text: userMessage }] });
+
+  const body = {
+    systemInstruction: {
+      parts: [{
+        text: `${systemPrompt}\n\nQuy tắc bắt buộc: Luôn phản hồi 100% bằng tiếng Việt tự nhiên, trừ khi người dùng yêu cầu ngôn ngữ khác.`
+      }]
+    },
+    contents,
+    generationConfig: {
+      temperature: 0.92,
+      maxOutputTokens: Math.min(Math.max(maxOutputTokens, 200), 12000),
+      topP: 0.95,
+    },
+  };
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: contents,
-      generationConfig: { temperature: 0.9, maxOutputTokens: 4096 },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Lỗi ${response.status}`);
+    const code = response.status;
+    const msg = err?.error?.message || `Lỗi HTTP ${code}`;
+    const e = new Error(msg) as Error & { code: number };
+    e.code = code;
+    throw e;
   }
 
   const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("AI không trả về nội dung. Vui lòng thử lại.");
+  return text;
 }
 
 export function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
-// 1. Hàm lưu tin nhắn (Bắt buộc để xây dựng cộng đồng sau này)
-export async function saveMessageToDb(characterId: number, role: string, content: string) {
-  try {
-    await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ characterId, role, content })
-    });
-  } catch (e) {
-    console.error("Lỗi lưu tin:", e);
-  }
-}
-
-// 2. Hàm lấy Profile User (Để AI biết ngoại hình bà)
-export function getUserContext(): string {
-  try {
-    const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
-    return `[Ngoại hình User]: ${profile.appearance || 'Tự do'}. [Tính cách]: ${profile.personality || 'Bình thường'}.`;
-  } catch {
-    return "";
-  }
-}
-
-// 3. Hàm lấy Tokens từ thanh trượt (Để AI viết dài 12k)
-export function getMaxTokens(): number {
-  const saved = localStorage.getItem('kismet_maxTokens');
-  return saved ? parseInt(saved) : 4096;
+export async function geminiRaw(apiKey: string, model: string, prompt: string, maxTokens = 2048): Promise<string> {
+  let mId = (typeof model === "string" && model.trim()) ? model.trim() : "gemini-2.5-flash";
+  if (!mId.startsWith("models/")) mId = `models/${mId}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.85, maxOutputTokens: maxTokens },
+    }),
+  });
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }

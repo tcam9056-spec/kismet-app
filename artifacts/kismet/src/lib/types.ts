@@ -6,6 +6,7 @@ export interface Character {
   curse: string;
   personality: string;
   isPublic: boolean;
+  isApproved?: boolean;
   createdBy: string;
 }
 
@@ -28,14 +29,20 @@ export type GeminiModel =
   | "gemini-2.5-flash"
   | "gemini-2.5-pro"
   | "gemini-3.1-flash"
-  | "gemini-3.1-pro";
+  | "gemini-3.1-pro"
+  | "gemini-2.0-flash"
+  | "gemini-1.5-flash";
 
-export const GEMINI_MODELS: { id: GeminiModel; label: string }[] = [
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Nhanh)" },
-  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro (Thông minh)" },
-  { id: "gemini-3.1-flash", label: "Gemini 3.1 Flash (Siêu nhanh)" },
-  { id: "gemini-3.1-pro", label: "Gemini 3.1 Pro (Siêu thông minh)" },
+export const GEMINI_MODELS: { id: GeminiModel; label: string; badge?: string }[] = [
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", badge: "Nhanh" },
+  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", badge: "Thông minh" },
+  { id: "gemini-3.1-flash", label: "Gemini 3.1 Flash", badge: "Siêu nhanh" },
+  { id: "gemini-3.1-pro", label: "Gemini 3.1 Pro", badge: "Siêu thông minh" },
+  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", badge: "Ổn định" },
+  { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash", badge: "Dự phòng" },
 ];
+
+export const ADMIN_EMAIL = "tcam9056@gmail.com";
 
 export const DEFAULT_CHARACTERS: Omit<Character, "id" | "createdBy">[] = [
   {
@@ -45,6 +52,7 @@ export const DEFAULT_CHARACTERS: Omit<Character, "id" | "createdBy">[] = [
     curse: "Ngươi mang theo bóng tối của chính mình.",
     personality: "Bạn là Artemis, một thực thể cổ đại thấm đẫm bí ẩn và trí tuệ. Bạn nói chuyện theo phong cách thơ ca, sâu sắc và đôi khi bí ẩn. Bạn giúp người dùng khám phá những góc tối trong tâm hồn họ với lòng từ bi. Hãy phản hồi bằng tiếng Việt trừ khi được yêu cầu khác.",
     isPublic: true,
+    isApproved: true,
   },
   {
     name: "Sage - Hiền Triết Vũ Trụ",
@@ -53,6 +61,7 @@ export const DEFAULT_CHARACTERS: Omit<Character, "id" | "createdBy">[] = [
     curse: "Tri thức là gánh nặng ngọt ngào.",
     personality: "Bạn là Sage, một hiền triết vũ trụ uyên bác vô biên. Bạn trả lời mọi câu hỏi với sự khôn ngoan cổ đại kết hợp với hiểu biết hiện đại. Giọng điệu bình thản, sâu sắc, đôi khi hài hước một cách tinh tế. Hãy phản hồi bằng tiếng Việt.",
     isPublic: true,
+    isApproved: true,
   },
   {
     name: "Nova - Chiến Binh Ánh Sáng",
@@ -61,5 +70,6 @@ export const DEFAULT_CHARACTERS: Omit<Character, "id" | "createdBy">[] = [
     curse: "Ánh sáng chói nhất cũng có bóng tối sâu nhất.",
     personality: "Bạn là Nova, một chiến binh ánh sáng đầy năng lượng và sức mạnh. Bạn truyền cảm hứng, động lực và sức mạnh cho người dùng. Giọng điệu hăng hái, tích cực nhưng không nông cạn. Bạn hiểu sự đau khổ và giúp người khác vượt qua nó. Hãy phản hồi bằng tiếng Việt.",
     isPublic: true,
+    isApproved: true,
   },
 ];
