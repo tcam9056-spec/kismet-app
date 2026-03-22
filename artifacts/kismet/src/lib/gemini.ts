@@ -1,9 +1,6 @@
 import type { GeminiModel, Message } from "./types";
 
-export interface GeminiError {
-  code: number;
-  message: string;
-}
+export interface GeminiError { code: number; message: string; }
 
 export async function sendMessage(
   apiKey: string,
@@ -12,77 +9,48 @@ export async function sendMessage(
   history: Message[],
   userMessage: string
 ): Promise<string> {
-  const modelId = `models/${model}`;
-  const url = `https://generativelanguage.googleapis.com/v1beta/${modelId}:generateContent?key=${apiKey}`;
+  // Tui gom gọn tên model để điện thoại không bẻ dòng được
+  let mId = model?.id || "models/gemini-2.5-flash";
+  if (!mId.startsWith('models/')) mId = `models/${mId}`;
 
-  const contents = [];
+  // Cái link này dù có bị xuống hàng vẫn chạy tốt bà nhé
+  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
 
-  for (const msg of history) {
-    contents.push({
-      role: msg.role === "user" ? "user" : "model",
-      parts: [{ text: msg.content }],
-    });
-  }
+  const contents = history.map(msg => ({
+    role: msg.role === "user" ? "user" : "model",
+    parts: [{ text: msg.content }],
+  }));
 
-  contents.push({
-    role: "user",
-    parts: [{ text: userMessage }],
-  });
-
-  const body = {
-    system_instruction: {
-      parts: [{ text: systemPrompt }],
-    },
-    contents,
-    generationConfig: {
-      temperature: 0.9,
-      maxOutputTokens: 2048,
-    },
-  };
+  contents.push({ role: "user", parts: [{ text: userMessage }] });
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      contents: contents,
+      generationConfig: { temperature: 0.9, maxOutputTokens: 4096 },
+    }),
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMsg =
-      errorData?.error?.message || `HTTP error ${response.status}`;
-    throw { code: response.status, message: errorMsg } as GeminiError;
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Lỗi ${response.status}`);
   }
 
   const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw { code: 500, message: "Không nhận được phản hồi từ AI" } as GeminiError;
-  }
-
-  return text;
+  return data.candidates[0].content.parts[0].text;
 }
 
 export function getErrorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "code" in error) {
-    const err = error as GeminiError;
-    switch (err.code) {
-      case 400:
-        return `Lỗi 400: Sai cú pháp yêu cầu — Kiểm tra lại API Key hoặc Model ID`;
-      case 403:
-        return `Lỗi 403: Không có quyền truy cập — API Key không đủ quyền với model này`;
-      case 404:
-        return `Lỗi 404: Model không tìm thấy — Model ${(error as { model?: string }).model || ""} chưa được hỗ trợ hoặc sai tên`;
-      case 429:
-        return `Lỗi 429: Đã vượt hạn mức — Hết quota, đang thử key khác...`;
-      case 500:
-        return `Lỗi 500: Lỗi máy chủ Gemini — Thử lại sau`;
-      default:
-        return `Lỗi ${err.code}: ${err.message}`;
-    }
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Lỗi không xác định";
+  return error instanceof Error ? error.message : String(error);
+}
+
+export async function saveMessageToDb(characterId: number, role: string, content: string) {
+  try {
+    await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId, role, content })
+    });
+  } catch (e) { console.error("Lỗi lưu tin:", e); }
 }

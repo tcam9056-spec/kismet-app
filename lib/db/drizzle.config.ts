@@ -1,14 +1,24 @@
-import { defineConfig } from "drizzle-kit";
-import path from "path";
+import { pgTable, text, serial, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
-
-export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
-  dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL,
-  },
+export const characters = pgTable("characters", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  avatar: text("avatar"),
+  firstMessage: text("first_message"),
+  systemPrompt: text("system_prompt"),
+  background: text("background"),
+  moodTags: jsonb("mood_tags").default(["Ngọt", "Ngược", "Lạnh lùng"]),
+  createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  characterId: serial("character_id").references(() => characters.id),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCharacterSchema = createInsertSchema(characters);
+export const selectCharacterSchema = createSelectSchema(characters);
