@@ -28,14 +28,28 @@ export interface Chat {
 }
 
 export type GeminiModel =
-  | "gemini-2.5-flash"
+    "gemini-2.5-flash"
   | "gemini-2.5-pro"
   | "gemini-3.1-flash"
-  | "gemini-3.1-pro";
-
+  | "gemini-3.1-pro"
+ ;
 export const GEMINI_MODELS: { id: GeminiModel; label: string; badge?: string }[] = [
-  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", badge: "Nhanh" },
-  { id: "gemini-2.5-pro",   label: "Gemini 2.5 Pro",   badge: "Thông minh" },
+    {
+  id: "gemini-2.5-flash",
+  label: "Gemini 2.5 Flash",
+  badge: "Nhanh"
+},
+  
+      
+        {
+  id: "gemini-2.5-pro",
+  label: "Gemini 2.5 Pro",
+  badge: "Thông minh"
+},
+  
+      
+   
+  
   { id: "gemini-3.1-flash", label: "Gemini 3.1 Flash", badge: "Siêu nhanh" },
   { id: "gemini-3.1-pro",   label: "Gemini 3.1 Pro",   badge: "Siêu thông minh" },
 ];

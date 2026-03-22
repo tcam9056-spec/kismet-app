@@ -909,7 +909,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
   }, [input, sending, send, quickContext]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const handleCharAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -958,7 +958,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
 
   /* ── render ── */
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#0a0a0f", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#121212", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
 
       {/* ══ COMPACT HEADER ══ */}
       <div style={{ background: "linear-gradient(180deg,#13101f,#0f0d1a)", borderBottom: "1px solid rgba(108,92,231,0.18)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -1126,6 +1126,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
           onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
           onKeyDown={handleKeyDown}
           placeholder="Nhắn tin cho linh hồn..."
+          enterKeyHint="enter"
           rows={1} disabled={sending}
           style={{ flex: 1, resize: "none", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(108,92,231,0.25)", borderRadius: 14, padding: "10px 14px", color: "#fff", fontSize: 14, outline: "none", lineHeight: 1.5, maxHeight: 120, overflow: "auto", fontFamily: "inherit", transition: "border-color 0.2s" }}
           onFocus={e => { e.target.style.borderColor = "rgba(108,92,231,0.6)"; }}

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import jsQR from "jsqr";
 import {
   Settings, Plus, Loader2, Globe, MessageCircle, User,
-  Camera, Search, CheckCircle, XCircle, Clock, Wand2, X
+  Search, CheckCircle, XCircle, Clock, Wand2, X
 } from "lucide-react";
 import { decodeCharacter } from "./CharacterProfile";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -122,56 +121,6 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ══════════════════════════════════════════════════════
-   QR SCANNER — đa chiến lược, xử lý ảnh lớn + crop thông minh
-══════════════════════════════════════════════════════ */
-function drawCrop(img: HTMLImageElement, sx: number, sy: number, sw: number, sh: number, maxPx = 1200) {
-  const scale = Math.min(1, maxPx / Math.max(sw, sh));
-  const dw = Math.round(sw * scale), dh = Math.round(sh * scale);
-  const c = document.createElement("canvas"); c.width = dw; c.height = dh;
-  c.getContext("2d")!.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
-  return c;
-}
-
-function tryQR(c: HTMLCanvasElement) {
-  const cx = c.getContext("2d")!;
-  const id = cx.getImageData(0, 0, c.width, c.height);
-  return jsQR(id.data, c.width, c.height, { inversionAttempts: "attemptBoth" });
-}
-
-function scanQRStrategies(img: HTMLImageElement): string | null {
-  const W = img.naturalWidth  || img.width;
-  const H = img.naturalHeight || img.height;
-
-  /* Danh sách vùng crop thử theo thứ tự ưu tiên */
-  const crops: Array<[number, number, number, number, number]> = [
-    /* [sx%, sy%, sw%, sh%, maxPx] */
-    [0,    0,    1,    1,    1200], /* Toàn ảnh — scale xuống nếu quá to */
-    [0,    0,    1,    1,    600],  /* Toàn ảnh thu nhỏ hơn */
-    [0,    0,    1,    1,    300],  /* Toàn ảnh rất nhỏ — scanner đôi khi thích */
-    /* Thẻ 16:9 ngang: QR nằm bên phải */
-    [0.42, 0,    0.58, 1,    800],
-    [0.5,  0,    0.5,  1,    800],
-    /* Thẻ 1:1 / portrait: QR nằm cuối */
-    [0.2,  0.55, 0.6,  0.45, 800],
-    [0.25, 0.6,  0.5,  0.4,  600],
-    /* Phần tư phải-dưới */
-    [0.5,  0.5,  0.5,  0.5,  600],
-    /* Giữa ảnh */
-    [0.25, 0.25, 0.5,  0.5,  600],
-    /* Toàn ảnh x2 lên nếu ảnh quá nhỏ */
-    [0,    0,    1,    1,    2400],
-  ];
-
-  for (const [rx, ry, rw, rh, mp] of crops) {
-    const sx = Math.round(rx * W), sy = Math.round(ry * H);
-    const sw = Math.round(rw * W), sh = Math.round(rh * H);
-    const result = tryQR(drawCrop(img, sx, sy, sw, sh, mp));
-    if (result) return result.data;
-  }
-  return null;
-}
-
 /* ══════════════════════════════════════════════
    IMPORT MODAL — paste code to summon character
 ══════════════════════════════════════════════ */
@@ -183,16 +132,15 @@ function ImportModal({ onClose, onImported, onChat }: {
   const { addCharacter } = useCharacters();
   const { user } = useAuth();
   const [code, setCode] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "scanning">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "ok">("idle");
   const [msg, setMsg] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const doImport = useCallback(async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
     const decoded = decodeCharacter(trimmed);
     if (!decoded) {
-      setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại.");
+      setMsg("❌ Mã không hợp lệ. Vui lòng thử lại.");
       return;
     }
     setStatus("loading"); setMsg("");
@@ -214,133 +162,65 @@ function ImportModal({ onClose, onImported, onChat }: {
     }
   }, [addCharacter, user, onImported, onClose, onChat]);
 
-  const handleQRFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setStatus("scanning"); setMsg("");
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      /* Thử 10 chiến lược crop + scale khác nhau */
-      const found = scanQRStrategies(img);
-      if (found) {
-        /* Tự động triệu hồi ngay — không cần bấm nút */
-        setCode(found);
-        doImport(found);
-      } else {
-        setStatus("idle");
-        setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại.");
-      }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      setStatus("idle");
-      setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại.");
-    };
-    img.src = objectUrl;
-    e.target.value = "";
-  };
-
-  const busy = status === "loading" || status === "scanning" || status === "ok";
+  const busy = status === "loading" || status === "ok";
 
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "rgba(2,1,14,0.93)", backdropFilter: "blur(22px)", animation: "fadeIn 0.18s ease" }}
       onClick={onClose}
     >
-      {/* 16:9 landscape container */}
       <div
-        style={{ width: "min(640px, 96vw)", borderRadius: 24, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(212,175,55,0.10) inset", animation: "slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)", display: "flex", flexDirection: "row", minHeight: 360, position: "relative" }}
+        style={{ width: "min(420px, 96vw)", borderRadius: 24, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(212,175,55,0.10) inset", animation: "slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)", background: "linear-gradient(160deg,#16102a,#0c0820)", display: "flex", flexDirection: "column", padding: "24px 22px 22px" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── LEFT PANEL: QR scan zone (cosmic bg) ── */}
-        <div style={{ flex: "0 0 48%", background: "linear-gradient(145deg,#0d0626,#070218)", borderRight: "1px solid rgba(108,92,231,0.18)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px 22px", position: "relative", overflow: "hidden" }}>
-          {/* Nebula background glows */}
-          <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-            <div style={{ position: "absolute", top: "20%", left: "30%", width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(108,92,231,0.22) 0%, transparent 70%)", filter: "blur(24px)" }} />
-            <div style={{ position: "absolute", bottom: "15%", right: "20%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 70%)", filter: "blur(20px)" }} />
+        {/* Header row */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginBottom: 3 }}>✦ Triệu Hồi Bằng Mã</h2>
+            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.45)", lineHeight: 1.4 }}>Dán mã chuỗi để triệu hồi nhân vật</p>
           </div>
-
-          {/* Label */}
-          <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(212,175,55,0.6)", letterSpacing: "0.14em", textTransform: "uppercase", textAlign: "center", marginBottom: 16, position: "relative", zIndex: 1 }}>
-            ✦ QUÉT ẢNH QR CỦA NHÂN VẬT
-          </p>
-
-          {/* Upload zone */}
-          <div
-            onClick={() => !busy && fileRef.current?.click()}
-            style={{ width: "100%", maxWidth: 180, aspectRatio: "1", borderRadius: 20, border: `2px dashed ${status === "scanning" ? "rgba(108,92,231,0.6)" : "rgba(212,175,55,0.35)"}`, background: status === "scanning" ? "rgba(108,92,231,0.07)" : "rgba(212,175,55,0.04)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, cursor: busy ? "default" : "pointer", transition: "all 0.2s", position: "relative", zIndex: 1 }}
-            onMouseEnter={e => { if (!busy) (e.currentTarget as HTMLDivElement).style.background = "rgba(212,175,55,0.08)"; }}
-            onMouseLeave={e => { if (!busy) (e.currentTarget as HTMLDivElement).style.background = "rgba(212,175,55,0.04)"; }}
-          >
-            {status === "scanning" ? (
-              <Loader2 size={32} style={{ color: "#a78bfa", animation: "spin 1s linear infinite" }} />
-            ) : (
-              <>
-                <Camera size={30} style={{ color: "rgba(212,175,55,0.7)" }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(212,175,55,0.7)", textAlign: "center", lineHeight: 1.4 }}>Chọn ảnh có QR</span>
-                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>PNG · JPG · WEBP</span>
-              </>
-            )}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleQRFile} />
-
-          {/* KISMET branding footer */}
-          <p style={{ fontSize: 8.5, color: "rgba(212,175,55,0.28)", marginTop: 18, letterSpacing: "0.1em", textTransform: "uppercase", position: "relative", zIndex: 1 }}>KISMET · triệu hồi nhân vật</p>
-        </div>
-
-        {/* ── RIGHT PANEL: paste code ── */}
-        <div style={{ flex: 1, background: "linear-gradient(160deg,#16102a,#0c0820)", display: "flex", flexDirection: "column", padding: "24px 22px 22px" }}>
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-            <div>
-              <h2 style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginBottom: 3 }}>✦ Triệu Hồi Bằng Mã</h2>
-              <p style={{ fontSize: 10, color: "rgba(167,139,250,0.45)", lineHeight: 1.4 }}>Dán mã chuỗi hoặc quét ảnh QR bên trái</p>
-            </div>
-            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-              <X size={12} />
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg,transparent,rgba(108,92,231,0.25))" }} />
-            <span style={{ fontSize: 9, color: "rgba(167,139,250,0.3)", fontWeight: 700, letterSpacing: "0.08em" }}>DÁN MÃ</span>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg,rgba(108,92,231,0.25),transparent)" }} />
-          </div>
-
-          {/* Textarea */}
-          <textarea
-            value={code}
-            onChange={e => { setCode(e.target.value); if (status !== "loading" && status !== "ok") setMsg(""); }}
-            placeholder="Dán mã nhân vật vào đây..."
-            rows={4}
-            style={{ flex: 1, padding: "11px 13px", borderRadius: 12, border: "1px solid rgba(108,92,231,0.22)", background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: 11.5, outline: "none", fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.6, width: "100%", transition: "border-color 0.2s" }}
-            onFocus={e => { e.target.style.borderColor = "rgba(108,92,231,0.5)"; }}
-            onBlur={e => { e.target.style.borderColor = "rgba(108,92,231,0.22)"; }}
-            autoFocus
-          />
-
-          {/* Status message — text only, no red borders */}
-          <div style={{ minHeight: 20, marginTop: 8 }}>
-            {msg && (
-              <p style={{ fontSize: 11, color: status === "ok" || msg.startsWith("🔗") || msg.startsWith("✓") ? "#34d399" : "rgba(255,255,255,0.55)", lineHeight: 1.4, textAlign: "center" }}>
-                {msg}
-              </p>
-            )}
-          </div>
-
-          {/* Import button */}
-          <button
-            onClick={() => doImport(code)}
-            disabled={!code.trim() || busy}
-            style={{ width: "100%", padding: "12px 0", marginTop: 4, borderRadius: 12, border: "none", background: status === "ok" ? "rgba(52,211,153,0.2)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: !code.trim() || busy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: busy ? "none" : "0 4px 16px rgba(108,92,231,0.38)", transition: "all 0.2s", opacity: !code.trim() && status !== "scanning" ? 0.5 : 1 }}>
-            {status === "loading" ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Đang triệu hồi...</>
-              : status === "ok" ? "✦ Thành công!"
-              : <><Wand2 size={13} /> Triệu hồi nhân vật</>}
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            <X size={12} />
           </button>
         </div>
+
+        {/* Divider */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg,transparent,rgba(108,92,231,0.25))" }} />
+          <span style={{ fontSize: 9, color: "rgba(167,139,250,0.3)", fontWeight: 700, letterSpacing: "0.08em" }}>DÁN MÃ</span>
+          <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg,rgba(108,92,231,0.25),transparent)" }} />
+        </div>
+
+        {/* Textarea */}
+        <textarea
+          value={code}
+          onChange={e => { setCode(e.target.value); if (status !== "loading" && status !== "ok") setMsg(""); }}
+          placeholder="Dán mã nhân vật vào đây..."
+          rows={5}
+          style={{ padding: "11px 13px", borderRadius: 12, border: "1px solid rgba(108,92,231,0.22)", background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: 11.5, outline: "none", fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.6, width: "100%", transition: "border-color 0.2s" }}
+          onFocus={e => { e.target.style.borderColor = "rgba(108,92,231,0.5)"; }}
+          onBlur={e => { e.target.style.borderColor = "rgba(108,92,231,0.22)"; }}
+          autoFocus
+        />
+
+        {/* Status message */}
+        <div style={{ minHeight: 20, marginTop: 8 }}>
+          {msg && (
+            <p style={{ fontSize: 11, color: status === "ok" || msg.startsWith("🔗") || msg.startsWith("✓") ? "#34d399" : "rgba(255,255,255,0.55)", lineHeight: 1.4, textAlign: "center" }}>
+              {msg}
+            </p>
+          )}
+        </div>
+
+        {/* Import button */}
+        <button
+          onClick={() => doImport(code)}
+          disabled={!code.trim() || busy}
+          style={{ width: "100%", padding: "12px 0", marginTop: 4, borderRadius: 12, border: "none", background: status === "ok" ? "rgba(52,211,153,0.2)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: !code.trim() || busy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: busy ? "none" : "0 4px 16px rgba(108,92,231,0.38)", transition: "all 0.2s", opacity: !code.trim() ? 0.5 : 1 }}>
+          {status === "loading" ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Đang triệu hồi...</>
+            : status === "ok" ? "✦ Thành công!"
+            : <><Wand2 size={13} /> Triệu hồi nhân vật</>}
+        </button>
       </div>
 
       <style>{`
