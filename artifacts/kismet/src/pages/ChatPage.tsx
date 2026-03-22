@@ -717,19 +717,19 @@ function PlusMenu({ onPhone, onGift, onFavorites, onMemory, giftCount, memoryCou
 }) {
   const btn = (icon: React.ReactNode, label: string, badge: number, onClick: () => void, color: string) => (
     <button onClick={() => { onClick(); onClose(); }}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 16px", borderRadius: 16, border: `1px solid ${color}20`, background: `${color}10`, cursor: "pointer", position: "relative", minWidth: 68, flex: 1 }}>
-      <div style={{ width: 42, height: 42, borderRadius: 13, background: `${color}20`, border: `1px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 16px", borderRadius: 18, border: `1px solid rgba(160,160,180,0.12)`, background: "rgba(30,26,50,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", cursor: "pointer", position: "relative", minWidth: 68, flex: 1, boxShadow: "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)", transition: "all 0.15s" }}>
+      <div style={{ width: 44, height: 44, borderRadius: 14, background: `${color}18`, border: `1px solid rgba(160,160,180,0.15)`, display: "flex", alignItems: "center", justifyContent: "center", color, boxShadow: `0 0 12px rgba(150,150,165,0.18), 0 0 4px ${color}30`, backdropFilter: "blur(4px)" }}>
         {icon}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{label}</span>
-      {badge > 0 && <div style={{ position: "absolute", top: 10, right: 10, width: 18, height: 18, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{badge}</div>}
+      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(200,195,220,0.8)" }}>{label}</span>
+      {badge > 0 && <div style={{ position: "absolute", top: 10, right: 10, width: 18, height: 18, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 8px rgba(239,68,68,0.6)" }}>{badge}</div>}
     </button>
   );
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 250 }} onClick={onClose}>
       <div style={{ position: "absolute", bottom: 76, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 448 }} onClick={e => e.stopPropagation()}>
-        <div style={{ background: "rgba(20,18,34,0.98)", border: "1px solid rgba(108,92,231,0.25)", borderRadius: 20, padding: "16px 16px 18px", backdropFilter: "blur(20px)", boxShadow: "0 -8px 32px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ background: "rgba(16,13,30,0.88)", border: "1px solid rgba(108,92,231,0.22)", borderRadius: 24, padding: "16px 16px 18px", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", boxShadow: "0 -8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)", display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* ── 1. Toggle 18+ ── */}
           <div
@@ -958,10 +958,10 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
 
   /* ── render ── */
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#1a1a1a", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "linear-gradient(160deg,#07050f 0%,#0e0b1e 50%,#080616 100%)", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif", overflow: "hidden" }}>
 
       {/* ══ COMPACT HEADER ══ */}
-      <div style={{ background: "linear-gradient(180deg,#13101f,#0f0d1a)", borderBottom: "1px solid rgba(108,92,231,0.18)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+      <div style={{ background: "rgba(14,10,28,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(108,92,231,0.18)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
         <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
           <ArrowLeft size={16} />
         </button>
@@ -1028,7 +1028,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
                 : <button onClick={() => setShowCharProfile(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><CharAvatar src={charAvatarUrl} emoji={character.avatar} size={32} /></button>
               }
               <div style={{ maxWidth: "90%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
-                <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(28,26,44,0.98)", fontSize: 14, lineHeight: 1.7, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 8px rgba(0,0,0,0.4)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.06)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(22,18,40,0.82)", backdropFilter: isUser ? "none" : "blur(14px)", WebkitBackdropFilter: isUser ? "none" : "blur(14px)", fontSize: 14, lineHeight: 1.7, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.07)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {isUser ? msg.content : renderNovel(msg.content)}
                 </div>
                 {/* Timestamp + action buttons row */}
@@ -1094,7 +1094,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
       )}
 
       {/* ══ QUICK CONTEXT STRIP ══ */}
-      <div style={{ background: "#0f0d1a", padding: "6px 14px 0", flexShrink: 0 }}>
+      <div style={{ background: "rgba(10,8,20,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "6px 14px 0", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 10, border: "1px solid rgba(108,92,231,0.15)", background: "rgba(108,92,231,0.05)" }}>
           <MapPin size={11} style={{ color: "rgba(167,139,250,0.4)", flexShrink: 0 }} />
           <input
@@ -1112,7 +1112,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
       </div>
 
       {/* ══ INPUT BAR ══ */}
-      <div style={{ borderTop: "1px solid rgba(108,92,231,0.15)", background: "#0f0d1a", padding: "10px 14px", display: "flex", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid rgba(108,92,231,0.18)", background: "rgba(10,8,20,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: "10px 14px", display: "flex", alignItems: "flex-end", gap: 8, flexShrink: 0, boxShadow: "0 -4px 24px rgba(0,0,0,0.4)" }}>
         {/* + button */}
         <button
           onClick={() => setShowPlusMenu(v => !v)}

@@ -384,9 +384,9 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
 function ForumCard({ char, onChat, onProfile, creatorRole }: { char: Character; onChat: () => void; onProfile: () => void; creatorRole?: UserRole }) {
   const isUrl = char.avatar.startsWith("http");
   return (
-    <div style={{ borderRadius: 20, border: "1px solid rgba(108,92,231,0.18)", background: "linear-gradient(180deg,rgba(28,26,44,0.8),rgba(15,13,26,0.9))", overflow: "hidden", transition: "border-color 0.2s" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(108,92,231,0.4)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(108,92,231,0.18)"; }}>
+    <div style={{ borderRadius: 22, border: "1px solid rgba(108,92,231,0.22)", background: "rgba(20,17,40,0.72)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", overflow: "hidden", transition: "border-color 0.2s, box-shadow 0.2s", boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)" }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = "rgba(108,92,231,0.5)"; el.style.boxShadow = "0 8px 32px rgba(108,92,231,0.18), inset 0 1px 0 rgba(255,255,255,0.06)"; }}
+      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = "rgba(108,92,231,0.22)"; el.style.boxShadow = "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"; }}>
       {/* Card body */}
       <div style={{ padding: "18px 18px 14px", display: "flex", gap: 14, alignItems: "flex-start" }}>
         <button onClick={onProfile} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}>
@@ -447,13 +447,13 @@ function ForumCard({ char, onChat, onProfile, creatorRole }: { char: Character; 
 }
 
 /* ══════════════════════════════════════════════
-   TAB: MESSAGES
+   TAB: MESSAGES — Smartphone Inbox Style
 ══════════════════════════════════════════════ */
 function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
   const { user } = useAuth();
   const { characters, loading } = useCharacters();
 
-  interface RecentChat { char: Character; lastMsg: string; lastTime: number; }
+  interface RecentChat { char: Character; lastMsg: string; lastTime: number; unread: boolean; }
   const recentChats: RecentChat[] = [];
 
   if (!loading && user) {
@@ -465,7 +465,8 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
         const msgs = JSON.parse(raw);
         if (!Array.isArray(msgs) || msgs.length === 0) continue;
         const last = msgs[msgs.length - 1];
-        recentChats.push({ char, lastMsg: last.content, lastTime: last.timestamp });
+        const unread = last.role === "assistant";
+        recentChats.push({ char, lastMsg: last.content, lastTime: last.timestamp, unread });
       } catch {}
     }
     recentChats.sort((a, b) => b.lastTime - a.lastTime);
@@ -475,6 +476,8 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
     const d = new Date(ts); const now = new Date();
     if (d.toDateString() === now.toDateString())
       return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    const diff = Math.floor((Date.now() - ts) / 86400000);
+    if (diff < 7) return ["CN","T2","T3","T4","T5","T6","T7"][d.getDay()];
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
 
@@ -486,35 +489,101 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
 
   if (recentChats.length === 0) return (
     <div style={{ textAlign: "center", padding: "70px 20px" }}>
-      <p style={{ fontSize: 36, marginBottom: 12 }}>💬</p>
-      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", marginBottom: 6 }}>Chưa có cuộc trò chuyện nào</p>
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.18)" }}>Vào "Tất cả" để bắt đầu chat</p>
+      <div style={{ fontSize: 48, marginBottom: 16, filter: "drop-shadow(0 0 16px rgba(108,92,231,0.4))" }}>💬</div>
+      <p style={{ fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>Chưa có tin nhắn nào</p>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>Vào "Tất cả" để bắt đầu cuộc trò chuyện</p>
     </div>
   );
 
   return (
-    <div style={{ padding: "16px 14px 0" }}>
-      <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12, paddingLeft: 2 }}>
-        Đang chat · {recentChats.length} nhân vật
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {recentChats.map(({ char, lastMsg, lastTime }) => (
-          <div key={char.id} onClick={() => onChat(char)}
-            style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 16, border: "1px solid rgba(108,92,231,0.12)", background: "rgba(255,255,255,0.02)", cursor: "pointer", transition: "all 0.15s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(108,92,231,0.06)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}>
-            <CharAvatar avatar={char.avatar} size={48} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{char.name}</p>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", flexShrink: 0, marginLeft: 8 }}>{fmt(lastTime)}</p>
+    <div style={{ padding: "0 0 16px" }}>
+      {/* Inbox header */}
+      <div style={{ padding: "14px 18px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <p style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>Tin Nhắn</p>
+          <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)", marginTop: 1 }}>{recentChats.length} cuộc trò chuyện</p>
+        </div>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(108,92,231,0.12)", border: "1px solid rgba(108,92,231,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+          💬
+        </div>
+      </div>
+
+      {/* Inbox list */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {recentChats.map(({ char, lastMsg, lastTime, unread }, idx) => {
+          const isUrl = char.avatar.startsWith("http") || char.avatar.startsWith("data:");
+          return (
+            <div
+              key={char.id}
+              onClick={() => onChat(char)}
+              style={{
+                display: "flex", alignItems: "center", gap: 14,
+                padding: "13px 18px",
+                borderBottom: idx < recentChats.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                cursor: "pointer",
+                transition: "background 0.15s",
+                background: "transparent",
+                position: "relative",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(108,92,231,0.07)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+            >
+              {/* Avatar with online indicator */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <div style={{
+                  width: 54, height: 54, borderRadius: "50%",
+                  background: isUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 26, overflow: "hidden",
+                  border: unread ? "2px solid rgba(167,139,250,0.7)" : "2px solid rgba(108,92,231,0.25)",
+                  boxShadow: unread ? "0 0 14px rgba(108,92,231,0.35)" : "none",
+                }}>
+                  {isUrl
+                    ? <img src={char.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : char.avatar}
+                </div>
+                {/* Online dot */}
+                <div style={{
+                  position: "absolute", bottom: 2, right: 2,
+                  width: 13, height: 13, borderRadius: "50%",
+                  background: "#22c55e",
+                  border: "2px solid #0a0a0f",
+                  boxShadow: "0 0 6px rgba(34,197,94,0.6)",
+                }} />
               </div>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.32)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {lastMsg.length > 65 ? lastMsg.slice(0, 65) + "…" : lastMsg}
-              </p>
+
+              {/* Text content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <p style={{ fontSize: 15, fontWeight: unread ? 800 : 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60%" }}>
+                    {char.name}
+                  </p>
+                  <p style={{ fontSize: 11, color: unread ? "rgba(167,139,250,0.8)" : "rgba(255,255,255,0.22)", flexShrink: 0, fontWeight: unread ? 600 : 400 }}>
+                    {fmt(lastTime)}
+                  </p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <p style={{
+                    flex: 1, fontSize: 13,
+                    color: unread ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.28)",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    fontStyle: "italic",
+                    fontWeight: unread ? 500 : 400,
+                  }}>
+                    {lastMsg.length > 58 ? lastMsg.slice(0, 58) + "…" : lastMsg}
+                  </p>
+                  {unread && (
+                    <div style={{
+                      width: 9, height: 9, borderRadius: "50%",
+                      background: "#a78bfa", flexShrink: 0,
+                      boxShadow: "0 0 6px rgba(167,139,250,0.7)",
+                    }} />
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -661,12 +730,16 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
           {draft.displayName || email.split("@")[0]}
         </p>
         <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)", marginBottom: 6 }}>{email}</p>
-        {/* Role badge */}
-        {(isAdmin || (draft as ProfileData & { role?: string }).role) && (
-          <div style={{ marginBottom: 8 }}>
-            <UserBadge role={isAdmin ? "admin" : (draft as ProfileData & { role?: string }).role as UserRole} size="md" />
-          </div>
-        )}
+        {/* Role badge — always show one */}
+        <div style={{ marginBottom: 8 }}>
+          <UserBadge
+            role={
+              isAdmin ? "admin"
+              : ((draft as ProfileData & { role?: string }).role as UserRole) || "hanhkhach"
+            }
+            size="md"
+          />
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 10px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)" }}>
             <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 600 }}>✦ Hồ sơ lưu cloud · Đồng bộ đa thiết bị</span>
@@ -788,10 +861,10 @@ export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUse
   };
 
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "#0a0a0f", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "linear-gradient(160deg,#07050f 0%,#0e0b1e 50%,#080616 100%)", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
 
       {/* ── TOP HEADER ── */}
-      <div style={{ background: "linear-gradient(180deg,#13101f,#0f0d1a)", borderBottom: "1px solid rgba(108,92,231,0.15)", padding: "13px 16px 11px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+      <div style={{ background: "rgba(14,10,28,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(108,92,231,0.18)", padding: "13px 16px 11px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxShadow: "0 1px 0 rgba(108,92,231,0.08), 0 4px 20px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {appLogo ? (
             <img src={appLogo} alt="logo" style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(212,175,55,0.3)" }} />
@@ -819,7 +892,7 @@ export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUse
       </div>
 
       {/* ── BOTTOM NAV ── */}
-      <div style={{ flexShrink: 0, background: "rgba(10,8,18,0.98)", borderTop: "1px solid rgba(108,92,231,0.15)", backdropFilter: "blur(20px)", paddingBottom: "env(safe-area-inset-bottom,0px)" }}>
+      <div style={{ flexShrink: 0, background: "rgba(8,6,18,0.92)", borderTop: "1px solid rgba(108,92,231,0.18)", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", paddingBottom: "env(safe-area-inset-bottom,0px)", boxShadow: "0 -1px 0 rgba(108,92,231,0.06), 0 -8px 32px rgba(0,0,0,0.4)" }}>
         <div style={{ display: "flex", maxWidth: 500, margin: "0 auto" }}>
           {navTab("all", <Globe size={20} />, "Tất cả")}
           {navTab("messages", <MessageCircle size={20} />, "Tin nhắn")}
