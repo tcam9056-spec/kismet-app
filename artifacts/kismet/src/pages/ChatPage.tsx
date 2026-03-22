@@ -77,6 +77,35 @@ async function geminiJSON<T>(apiKey: string, model: string, prompt: string): Pro
 }
 
 /* ═══════════════════════════════════════════════════
+   MARKDOWN RENDERER (bold + italic only)
+═══════════════════════════════════════════════════ */
+function renderNovel(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  // Regex: **...**  (bold) | *...* (italic) | plain text
+  const pattern = /\*\*("?[^*]+"?)\*\*|\*([^*]+)\*/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > last) {
+      nodes.push(<span key={key++}>{text.slice(last, match.index)}</span>);
+    }
+    if (match[1] !== undefined) {
+      // **bold** → dialogue
+      nodes.push(<strong key={key++} style={{ fontWeight: 700, color: "#e9d5ff" }}>{match[1]}</strong>);
+    } else if (match[2] !== undefined) {
+      // *italic* → action/description
+      nodes.push(<em key={key++} style={{ fontStyle: "italic", color: "rgba(196,181,253,0.75)" }}>{match[2]}</em>);
+    }
+    last = pattern.lastIndex;
+  }
+  if (last < text.length) {
+    nodes.push(<span key={key++}>{text.slice(last)}</span>);
+  }
+  return nodes;
+}
+
+/* ═══════════════════════════════════════════════════
    AVATAR COMPONENTS
 ═══════════════════════════════════════════════════ */
 function CharAvatar({ src, emoji, size }: { src: string | null; emoji: string; size: number }) {
@@ -623,8 +652,8 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
                 : <button onClick={() => setShowCharProfile(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><CharAvatar src={charAvatarUrl} emoji={character.avatar} size={32} /></button>
               }
               <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
-                <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(28,26,44,0.98)", fontSize: 14, lineHeight: 1.6, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 8px rgba(0,0,0,0.4)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.06)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                  {msg.content}
+                <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(28,26,44,0.98)", fontSize: 14, lineHeight: 1.7, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 8px rgba(0,0,0,0.4)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.06)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  {isUser ? msg.content : renderNovel(msg.content)}
                 </div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.18)", marginTop: 4, paddingInline: 4 }}>{fmt(msg.timestamp)}</div>
               </div>
