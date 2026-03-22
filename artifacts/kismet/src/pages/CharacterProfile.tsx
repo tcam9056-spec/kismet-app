@@ -449,9 +449,10 @@ interface Props {
 
 export default function CharacterProfile({ character, onClose, onChat, onEdit, creatorName = "KISMET", viewerEmail, onViewCreator }: Props) {
   const [avatarSrc, setAvatarSrc] = useState<string | null>(() =>
-    character.avatar.startsWith("http") ? character.avatar : (localStorage.getItem(`kismet_char_avatar_${character.id}`) || null)
+    character.avatar?.startsWith("http") ? character.avatar : null
   );
   const avatarFileRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const code = encodeCharacter(character);
 
   /* Xác định quyền: chủ sở hữu = người tạo hoặc admin */
@@ -473,21 +474,25 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
     const file = e.target.files?.[0];
     if (!file) return;
     setAvatarUploading(true);
+    setAvatarError(null);
     try {
-      const { updateCharacterAvatar } = await import("@/lib/firebase");
-      const url = await updateCharacterAvatar(character.id, file);
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const res = await fetch("/api/upload-avatar", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload thất bại");
+      const data = await res.json() as { url: string };
+      const url = data.url;
       setAvatarSrc(url);
-    } catch {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const b64 = reader.result as string;
-        localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
-        setAvatarSrc(b64);
-      };
-      reader.readAsDataURL(file);
+      const { doc, updateDoc } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase");
+      await updateDoc(doc(db, "characters", character.id), { avatar: url });
+    } catch (err) {
+      setAvatarError("Tải ảnh thất bại. Vui lòng thử lại.");
+      console.error("Avatar upload error:", err);
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = "";
     }
-    setAvatarUploading(false);
-    e.target.value = "";
   };
 
   const sections = parsePersonalitySections(character.personality);
@@ -543,13 +548,14 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
                   ? <img src={avatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   : character.avatar}
             </div>
-            {/* Camera upload button — chỉ hiện với chủ sở hữu */}
+            {/* Camera icon — chỉ hiện với chủ sở hữu */}
             {isOwner && (
               <>
                 <button
                   onClick={() => avatarFileRef.current?.click()}
                   title="Đổi ảnh đại diện"
-                  style={{ position: "absolute", bottom: 4, right: 4, width: 30, height: 30, borderRadius: "50%", border: "2px solid #100d1a", background: "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, boxShadow: "0 2px 8px rgba(108,92,231,0.5)" }}>
+                  disabled={avatarUploading}
+                  style={{ position: "absolute", bottom: 4, right: 4, width: 30, height: 30, borderRadius: "50%", border: "2px solid #100d1a", background: "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: avatarUploading ? "not-allowed" : "pointer", padding: 0, boxShadow: "0 2px 8px rgba(108,92,231,0.5)", opacity: avatarUploading ? 0.5 : 1 }}>
                   <Camera size={14} />
                 </button>
                 <input ref={avatarFileRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
@@ -557,7 +563,24 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
             )}
           </div>
 
-          <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginTop: 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
+          {/* Upload Image button — visible call-to-action for owner */}
+          {isOwner && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <button
+                onClick={() => { setAvatarError(null); avatarFileRef.current?.click(); }}
+                disabled={avatarUploading}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 18px", borderRadius: 20, border: "1px solid rgba(108,92,231,0.5)", background: avatarUploading ? "rgba(108,92,231,0.08)" : "rgba(108,92,231,0.14)", color: "#c4b5fd", fontSize: 12, fontWeight: 700, cursor: avatarUploading ? "not-allowed" : "pointer", transition: "all 0.18s" }}>
+                {avatarUploading
+                  ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Đang tải lên...</>
+                  : <><Camera size={13} /> Upload Image</>}
+              </button>
+              {avatarError && (
+                <span style={{ fontSize: 11, color: "#f87171" }}>{avatarError}</span>
+              )}
+            </div>
+          )}
+
+          <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginTop: isOwner ? 8 : 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
             {character.name}
           </h2>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>

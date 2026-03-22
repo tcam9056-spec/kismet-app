@@ -192,7 +192,7 @@ function CharProfileModal({ character, charAvatarUrl, isOwner, onClose }: {
                 <Lock size={9} style={{ color: "#34d399" }} />
                 <span style={{ fontSize: 9.5, fontWeight: 700, color: "#34d399", letterSpacing: "0.05em" }}>Chế độ Sáng tạo — Toàn quyền truy cập</span>
               </div>
-              {background.length > 0 && (
+              {(background?.length ?? 0) > 0 && (
                 <div style={{ padding: "12px 14px", borderRadius: 14, background: "rgba(52,211,153,0.04)", border: "1px solid rgba(52,211,153,0.13)", marginBottom: 10 }}>
                   <p style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(52,211,153,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
                     <Lock size={8} /> Linh Hồn &amp; Thế Giới — Riêng tư
@@ -204,7 +204,7 @@ function CharProfileModal({ character, charAvatarUrl, isOwner, onClose }: {
           )}
 
           {/* ── Ngoại hình — glassmorphism vàng ── */}
-          {appearance.length > 0 && (
+          {(appearance?.length ?? 0) > 0 && (
             <div style={{ position: "relative", marginBottom: 12 }}>
               <div style={{ position: "absolute", inset: -10, borderRadius: 22, background: "radial-gradient(ellipse at 50% 50%, rgba(212,175,55,0.2) 0%, transparent 72%)", pointerEvents: "none", zIndex: 0 }} />
               <div style={{ position: "absolute", inset: -1.5, borderRadius: 18, background: "linear-gradient(135deg, rgba(212,175,55,0.55) 0%, rgba(196,181,253,0.2) 50%, rgba(212,175,55,0.55) 100%)", zIndex: 0 }} />
@@ -226,7 +226,7 @@ function CharProfileModal({ character, charAvatarUrl, isOwner, onClose }: {
           )}
 
           {/* ── Tính cách — glassmorphism tím ── */}
-          {traits.length > 0 && (
+          {(traits?.length ?? 0) > 0 && (
             <div style={{ position: "relative", marginBottom: 12 }}>
               <div style={{ position: "absolute", inset: -10, borderRadius: 22, background: "radial-gradient(ellipse at 50% 50%, rgba(147,51,234,0.22) 0%, transparent 72%)", pointerEvents: "none", zIndex: 0 }} />
               <div style={{ position: "absolute", inset: -1.5, borderRadius: 18, background: "linear-gradient(135deg, rgba(167,139,250,0.5) 0%, rgba(212,175,55,0.2) 50%, rgba(147,51,234,0.5) 100%)", zIndex: 0 }} />
