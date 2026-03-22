@@ -62,6 +62,38 @@ function savePhoneCache(charId: string, data: PhoneData) {
   localStorage.setItem(`kismet_phone_${charId}`, JSON.stringify(data));
 }
 
+/* ── Memory helpers ── */
+const MEMORY_MAX = 20;
+function loadMemories(uid: string, charId: string): string[] {
+  try { const r = localStorage.getItem(`kismet_mem_${uid}_${charId}`); return r ? JSON.parse(r) : []; }
+  catch { return []; }
+}
+function saveMemories(uid: string, charId: string, mems: string[]) {
+  localStorage.setItem(`kismet_mem_${uid}_${charId}`, JSON.stringify(mems));
+}
+
+/* ── NPC avatar helpers ── */
+function npcAvatarKey(charId: string, npcName: string) {
+  return `kismet_npc_${charId}_${encodeURIComponent(npcName)}`;
+}
+function loadNpcAvatar(charId: string, npcName: string): string | null {
+  return localStorage.getItem(npcAvatarKey(charId, npcName));
+}
+function saveNpcAvatar(charId: string, npcName: string, b64: string) {
+  localStorage.setItem(npcAvatarKey(charId, npcName), b64);
+}
+
+/* ── Parse personality for profile display ── */
+function parsePersonalitySections(personality: string): { appearance?: string; traits?: string } {
+  const apM = personality.match(/━━\s*NGOẠI HÌNH[^━]*━━\n?([\s\S]*?)(?=━━|$)/i);
+  const trM = personality.match(/━━\s*TÍNH CÁCH[^━]*━━\n?([\s\S]*?)(?=━━|$)/i);
+  const clean = (s?: string) => s?.replace(/\(AI phải[^)]*\)/gi, "").trim();
+  return {
+    appearance: clean(apM?.[1]),
+    traits: clean(trM?.[1]),
+  };
+}
+
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result as string); r.readAsDataURL(file); });
 }
@@ -145,17 +177,34 @@ function CharProfileModal({ character, charAvatarUrl, onClose }: { character: Ch
           </button>
         </div>
 
-        {/* Info sections */}
+        {/* Info sections — chỉ hiện Ngoại hình & Tính cách, ẩn system prompt */}
         <div style={{ padding: "18px 20px 0" }}>
-          {[
-            { label: "✦ Bối cảnh & Tính cách", value: character.personality },
-            ...(character.curse ? [{ label: "⚡ Lời nguyền", value: character.curse }] : []),
-          ].map(({ label, value }) => (
-            <div key={label} style={{ marginBottom: 14, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)" }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label}</p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.65 }}>{value}</p>
-            </div>
-          ))}
+          {(() => {
+            const { appearance, traits } = parsePersonalitySections(character.personality);
+            const hasParsed = appearance || traits;
+            const sections: { label: string; value: string; icon: string }[] = [];
+            if (hasParsed) {
+              if (appearance) sections.push({ icon: "✨", label: "Ngoại hình", value: appearance });
+              if (traits)     sections.push({ icon: "🔮", label: "Tính cách", value: traits });
+            } else {
+              /* Nhân vật cũ không có sections — hiện ngắn gọn, không raw system prompt */
+              const bio = character.personality
+                .replace(/\[[\w\s]+\]/g, "")       /* bỏ [THÔNG TIN...] */
+                .replace(/━+[^━]*━+/g, "")          /* bỏ separator headers */
+                .replace(/\(AI phải[^)]*\)/gi, "")
+                .replace(/\n{3,}/g, "\n\n")
+                .trim()
+                .slice(0, 400);
+              if (bio) sections.push({ icon: "✦", label: "Hồ sơ nhân vật", value: bio + (character.personality.length > 400 ? "…" : "") });
+            }
+            if (character.curse) sections.push({ icon: "⚡", label: "Lời nguyền", value: character.curse });
+            return sections.map(({ icon, label, value }) => (
+              <div key={label} style={{ marginBottom: 14, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)" }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{icon} {label}</p>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{value}</p>
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>
@@ -174,6 +223,17 @@ function PhoneModal({ character, charAvatarUrl, keys, model, onClose }: {
   const [data, setData] = useState<PhoneData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* NPC avatar state — track by name */
+  const [npcAvatars, setNpcAvatars] = useState<Record<string, string>>({});
+  const npcFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleNpcAvatar = async (npcName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const b64 = await readFileAsBase64(file);
+    saveNpcAvatar(character.id, npcName, b64);
+    setNpcAvatars(prev => ({ ...prev, [npcName]: b64 }));
+    e.target.value = "";
+  };
 
   const generate = useCallback(async () => {
     const cached = loadPhoneCache(character.id);
@@ -217,6 +277,17 @@ Trả về JSON hợp lệ theo định dạng sau, KHÔNG thêm text ngoài JSO
   }, [character, keys, model]);
 
   useEffect(() => { generate(); }, [generate]);
+
+  /* Load saved NPC avatars once data arrives */
+  useEffect(() => {
+    if (!data) return;
+    const avatars: Record<string, string> = {};
+    data.npcs.forEach(npc => {
+      const saved = loadNpcAvatar(character.id, npc.name);
+      if (saved) avatars[npc.name] = saved;
+    });
+    setNpcAvatars(avatars);
+  }, [data, character.id]);
 
   const tabStyle = (t: PhoneTab): React.CSSProperties => ({
     flex: 1, padding: "10px 0", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
@@ -267,18 +338,33 @@ Trả về JSON hợp lệ theo định dạng sau, KHÔNG thêm text ngoài JSO
             <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 4 }}>
               Nhân vật phụ liên quan đến {character.name}
             </p>
-            {data.npcs.map((npc, i) => (
-              <div key={i} style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(108,92,231,0.12)", display: "flex", gap: 14, alignItems: "flex-start" }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#1a0a3e,#4c1d95)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, border: "1.5px solid rgba(108,92,231,0.3)" }}>
-                  {npc.emoji}
+            {data.npcs.map((npc, i) => {
+              const avatarSrc = npcAvatars[npc.name] || null;
+              return (
+                <div key={i} style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(108,92,231,0.12)", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                  {/* Avatar with upload button */}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: "50%", background: avatarSrc ? "transparent" : "linear-gradient(135deg,#1a0a3e,#4c1d95)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, border: "1.5px solid rgba(108,92,231,0.35)", overflow: "hidden" }}>
+                      {avatarSrc ? <img src={avatarSrc} alt={npc.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : npc.emoji}
+                    </div>
+                    <button onClick={() => npcFileRefs.current[npc.name]?.click()}
+                      style={{ position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: "50%", border: "1.5px solid #0a0a0f", background: "#6c5ce7", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                      <Camera size={10} />
+                    </button>
+                    <input ref={el => { npcFileRefs.current[npc.name] = el; }} type="file" accept="image/*"
+                      onChange={e => handleNpcAvatar(npc.name, e)} style={{ display: "none" }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{npc.name}</p>
+                    <p style={{ fontSize: 11, color: "#a78bfa", marginBottom: 4 }}>{npc.role}</p>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{npc.relation}</p>
+                  </div>
                 </div>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{npc.name}</p>
-                  <p style={{ fontSize: 11, color: "#a78bfa", marginBottom: 4 }}>{npc.role}</p>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{npc.relation}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.25)", textAlign: "center", paddingTop: 4 }}>
+              Nhấn icon 📷 để đặt ảnh đại diện cho từng NPC
+            </p>
           </div>
         )}
 
@@ -295,16 +381,27 @@ Trả về JSON hợp lệ theo định dạng sau, KHÔNG thêm text ngoài JSO
                 <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
                   {conv.chat.map((msg, j) => {
                     const isChar = msg.from === character.name;
+                    /* Resolve avatar: char avatar | NPC avatar | emoji fallback */
+                    const msgAvatarSrc = isChar ? charAvatarUrl : (npcAvatars[msg.from] || null);
+                    const msgEmoji = msg.emoji;
                     return (
                       <div key={j} style={{ display: "flex", justifyContent: isChar ? "flex-end" : "flex-start", gap: 6, alignItems: "flex-end" }}>
-                        {!isChar && <span style={{ fontSize: 20 }}>{msg.emoji}</span>}
+                        {!isChar && (
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: msgAvatarSrc ? "transparent" : "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, overflow: "hidden" }}>
+                            {msgAvatarSrc ? <img src={msgAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : msgEmoji}
+                          </div>
+                        )}
                         <div>
                           <div style={{ padding: "8px 12px", borderRadius: isChar ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isChar ? "rgba(108,92,231,0.35)" : "rgba(255,255,255,0.07)", border: `1px solid ${isChar ? "rgba(108,92,231,0.4)" : "rgba(255,255,255,0.06)"}`, fontSize: 12, lineHeight: 1.5, maxWidth: 220 }}>
                             {msg.content}
                           </div>
                           <p style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 3, textAlign: isChar ? "right" : "left", paddingInline: 4 }}>{msg.time}</p>
                         </div>
-                        {isChar && <span style={{ fontSize: 20 }}>{msg.emoji}</span>}
+                        {isChar && (
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: msgAvatarSrc ? "transparent" : "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, overflow: "hidden" }}>
+                            {msgAvatarSrc ? <img src={msgAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : msgEmoji}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -383,10 +480,122 @@ function GiftModal({ gifts, charName, onClose }: { gifts: GiftItem[]; charName: 
 }
 
 /* ═══════════════════════════════════════════════════
+   D. MEMORY MODAL — Khắc ghi Ký ức
+═══════════════════════════════════════════════════ */
+function MemoryModal({ uid, charId, charName, onClose }: {
+  uid: string; charId: string; charName: string; onClose: () => void;
+}) {
+  const [memories, setMemories] = useState<string[]>(() => loadMemories(uid, charId));
+  const [input, setInput]       = useState("");
+  const used = memories.length;
+  const full = used >= MEMORY_MAX;
+
+  const addMemory = () => {
+    const txt = input.trim();
+    if (!txt || full) return;
+    const next = [...memories, txt];
+    setMemories(next);
+    saveMemories(uid, charId, next);
+    setInput("");
+  };
+
+  const deleteMemory = (i: number) => {
+    const next = memories.filter((_, idx) => idx !== i);
+    setMemories(next);
+    saveMemories(uid, charId, next);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300, backdropFilter: "blur(14px)" }} onClick={onClose}>
+      <div style={{ background: "linear-gradient(180deg,#1c1a2e,#0f0d1a)", border: "1px solid rgba(108,92,231,0.28)", borderTopLeftRadius: 28, borderTopRightRadius: 28, width: "100%", maxWidth: 480, maxHeight: "88dvh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 20px 14px", borderBottom: "1px solid rgba(108,92,231,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 800 }}>🧿 Khắc ghi Ký ức</h2>
+            <p style={{ fontSize: 11, color: "rgba(167,139,250,0.5)", marginTop: 2 }}>{charName} · <span style={{ color: full ? "#f87171" : "#34d399", fontWeight: 700 }}>Đã dùng: {used}/{MEMORY_MAX}</span></p>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Info panel glassmorphism */}
+        <div style={{ margin: "14px 16px 0", borderRadius: 16, border: "1px solid rgba(108,92,231,0.22)", background: "rgba(108,92,231,0.06)", backdropFilter: "blur(8px)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>🔮</span>
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#c4b5fd", marginBottom: 2 }}>Ký ức là gì?</p>
+              <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>Những sự kiện cốt lõi, lời hứa, bí mật mà <strong>{charName}</strong> sẽ không bao giờ được phép quên.</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>⚡</span>
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", marginBottom: 2 }}>Sức mạnh</p>
+              <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>Ký ức có <strong>quyền năng tối cao</strong> — ghi đè phản hồi ngẫu nhiên của AI, đảm bảo nhất quán 100%.</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#34d399", marginBottom: 2 }}>Mẹo</p>
+              <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>Dùng câu khẳng định chắc chắn. Ví dụ: <em style={{ color: "rgba(196,181,253,0.8)" }}>{`"${charName} và {user} đã hôn nhau lần đầu dưới mưa."`}</em></p>
+            </div>
+          </div>
+        </div>
+
+        {/* Memory list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {memories.length === 0 && (
+            <div style={{ textAlign: "center", padding: "30px 0" }}>
+              <p style={{ fontSize: 28, marginBottom: 10 }}>🧿</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Chưa có ký ức nào được khắc ghi</p>
+            </div>
+          )}
+          {memories.map((mem, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "12px 14px", borderRadius: 13, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(108,92,231,0.14)" }}>
+              <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#a78bfa", flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+              <p style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.55, minWidth: 0 }}>{mem}</p>
+              <button onClick={() => deleteMemory(i)} style={{ background: "none", border: "none", color: "rgba(239,68,68,0.45)", cursor: "pointer", padding: "2px 4px", fontSize: 14, flexShrink: 0, display: "flex", alignItems: "center" }}>
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Input bar */}
+        <div style={{ padding: "12px 16px 20px", borderTop: "1px solid rgba(108,92,231,0.12)", flexShrink: 0 }}>
+          {full && (
+            <p style={{ fontSize: 11, color: "#f87171", textAlign: "center", marginBottom: 8 }}>
+              Đã đạt giới hạn 20 ký ức. Xóa ký ức cũ để thêm mới.
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addMemory(); } }}
+              disabled={full}
+              placeholder={full ? "Đã đầy — xóa ký ức cũ để tiếp tục" : "Nhập ký ức cần khắc ghi..."}
+              style={{ flex: 1, padding: "10px 14px", borderRadius: 12, border: `1px solid ${full ? "rgba(239,68,68,0.2)" : "rgba(108,92,231,0.3)"}`, background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 13, outline: "none", fontFamily: "inherit", opacity: full ? 0.5 : 1 }}
+            />
+            <button onClick={addMemory} disabled={full || !input.trim()}
+              style={{ padding: "10px 18px", borderRadius: 12, border: "none", background: full || !input.trim() ? "rgba(108,92,231,0.2)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: full || !input.trim() ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 13, fontWeight: 700, cursor: full || !input.trim() ? "not-allowed" : "pointer", flexShrink: 0 }}>
+              Khắc ghi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
    PLUS MENU
 ═══════════════════════════════════════════════════ */
-function PlusMenu({ onPhone, onGift, onFavorites, giftCount, onClose, safeMode, onToggleSafeMode, modelName }: {
-  onPhone: () => void; onGift: () => void; onFavorites: () => void; giftCount: number; onClose: () => void;
+function PlusMenu({ onPhone, onGift, onFavorites, onMemory, giftCount, memoryCount, onClose, safeMode, onToggleSafeMode, modelName }: {
+  onPhone: () => void; onGift: () => void; onFavorites: () => void; onMemory: () => void;
+  giftCount: number; memoryCount: number; onClose: () => void;
   safeMode: boolean; onToggleSafeMode: () => void; modelName: string;
 }) {
   const btn = (icon: React.ReactNode, label: string, badge: number, onClick: () => void, color: string) => (
@@ -439,10 +648,11 @@ function PlusMenu({ onPhone, onGift, onFavorites, giftCount, onClose, safeMode, 
           {/* ── 3. Feature buttons ── */}
           <div>
             <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 10, textAlign: "center" }}>Tính năng</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              {btn(<Phone size={19} />, "Điện thoại", 0, onPhone, "#6c5ce7")}
-              {btn(<Gift size={19} />, "Quà tặng", giftCount, onGift, "#f59e0b")}
-              {btn(<Heart size={19} />, "Yêu thích", 0, onFavorites, "#ec4899")}
+            <div style={{ display: "flex", gap: 8 }}>
+              {btn(<Phone size={18} />, "Điện thoại", 0, onPhone, "#6c5ce7")}
+              {btn(<Gift size={18} />, "Quà tặng", giftCount, onGift, "#f59e0b")}
+              {btn(<span style={{ fontSize: 19 }}>🧿</span>, "Ký ức", memoryCount, onMemory, "#a855f7")}
+              {btn(<Heart size={18} />, "Yêu thích", 0, onFavorites, "#ec4899")}
             </div>
           </div>
 
@@ -461,8 +671,16 @@ export default function ChatPage({ character, onBack }: Props) {
   const { user } = useAuth();
   const { keys, selectedModel, loading: keysLoading } = useKeys();
   const [safeMode, setSafeMode] = useState(true);
+
+  /* ── Memories — load & live-sync ── */
+  const [memories, setMemories] = useState<string[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    setMemories(loadMemories(user.uid, character.id));
+  }, [user?.uid, character.id]);
+
   const { messages, loading, sending, statusText, error, send, clearHistory } =
-    useChat(character, keys, selectedModel as GeminiModel, safeMode);
+    useChat(character, keys, selectedModel as GeminiModel, safeMode, memories);
 
   const email = user?.email || user?.uid || "";
 
@@ -473,6 +691,7 @@ export default function ChatPage({ character, onBack }: Props) {
   const [showCharProfile, setShowCharProfile] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
 
   /* avatars */
@@ -748,11 +967,27 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
           onPhone={() => setShowPhone(true)}
           onGift={() => { setShowGift(true); setNewGiftCount(0); }}
           onFavorites={() => { setShowGift(true); setNewGiftCount(0); }}
+          onMemory={() => setShowMemory(true)}
           giftCount={newGiftCount}
+          memoryCount={memories.length}
           onClose={() => setShowPlusMenu(false)}
           safeMode={safeMode}
           onToggleSafeMode={() => setSafeMode(v => !v)}
           modelName={selectedModel}
+        />
+      )}
+
+      {/* ══ MEMORY MODAL ══ */}
+      {showMemory && user && (
+        <MemoryModal
+          uid={user.uid}
+          charId={character.id}
+          charName={character.name}
+          onClose={() => {
+            /* Sync updated memories back into state so AI picks them up immediately */
+            setMemories(loadMemories(user.uid, character.id));
+            setShowMemory(false);
+          }}
         />
       )}
 

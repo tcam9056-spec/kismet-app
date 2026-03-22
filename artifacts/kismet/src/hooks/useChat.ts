@@ -72,7 +72,7 @@ function getMaxTokens(): number {
   }
 }
 
-export function useChat(character: Character | null, keys: string[], model: GeminiModel, safeMode = true) {
+export function useChat(character: Character | null, keys: string[], model: GeminiModel, safeMode = true, memories: string[] = []) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -183,6 +183,13 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
       } catch {}
     })();
 
+    /* ── Memory section — quyền năng tối cao ── */
+    const memSection = memories.length > 0
+      ? `[KÝ ỨC BẤT BIẾN — QUYỀN NĂNG TỐI CAO]\n` +
+        memories.map((m, i) => `${i + 1}. ${m}`).join("\n") +
+        `\n\nNhững điều trên là SỰ THẬT TUYỆT ĐỐI không thể thay đổi. ${character.name} PHẢI nhất quán 100% — không được mâu thuẫn, phủ nhận hay quên.\n\n`
+      : "";
+
     /* Build full system prompt = user context + character personality */
     const userContext = buildUserContext(user.uid);
     const charPrompt = character.curse
@@ -246,8 +253,8 @@ ${quickCtxLine}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     const fullSystemPrompt = userContext
-      ? `${novelStyleInstruction}\n\n${userContext}\n\n---\n\n${charPrompt}`
-      : `${novelStyleInstruction}\n\n${charPrompt}`;
+      ? `${memSection}${novelStyleInstruction}\n\n${userContext}\n\n---\n\n${charPrompt}`
+      : `${memSection}${novelStyleInstruction}\n\n${charPrompt}`;
 
     const historyForAI = msgsRef.current.slice(-20);
     const maxTokens = getMaxTokens();
