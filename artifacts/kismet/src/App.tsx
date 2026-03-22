@@ -11,9 +11,8 @@ import type { Character } from "@/lib/types";
 
 const queryClient = new QueryClient();
 
-type Screen = "home" | "chat" | "settings" | "addCharacter" | "userPage";
+type Screen = "home" | "chat" | "settings" | "addCharacter" | "editCharacter" | "userPage";
 
-/* ── Elegant KISMET Splash ── */
 function SplashScreen() {
   return (
     <div style={{
@@ -63,6 +62,7 @@ function AppContent() {
   const { user, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>("home");
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
+  const [editCharacter, setEditCharacter] = useState<Character | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -73,14 +73,12 @@ function AppContent() {
     return () => clearTimeout(t);
   }, []);
 
-  /* Handle deep-link ?profile=uid on load */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const profileUid = params.get("profile");
     if (profileUid && user) {
       setViewUserId(profileUid);
       setScreen("userPage");
-      /* Clean URL */
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [user]);
@@ -96,6 +94,7 @@ function AppContent() {
       <ChatPage
         character={activeCharacter}
         onBack={() => { setScreen("home"); setActiveCharacter(null); }}
+        onEdit={(char) => { setEditCharacter(char); setScreen("editCharacter"); }}
       />
     );
   }
@@ -106,6 +105,20 @@ function AppContent() {
 
   if (screen === "addCharacter") {
     return <AddCharacterPage onBack={() => setScreen("home")} />;
+  }
+
+  if (screen === "editCharacter" && editCharacter) {
+    return (
+      <AddCharacterPage
+        editCharacter={editCharacter}
+        onBack={() => {
+          /* Update activeCharacter with changes if currently in chat */
+          setScreen("home");
+          setEditCharacter(null);
+          setActiveCharacter(null);
+        }}
+      />
+    );
   }
 
   if (screen === "userPage" && viewUserId) {

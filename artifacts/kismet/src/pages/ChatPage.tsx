@@ -91,13 +91,16 @@ function saveNpcAvatar(charId: string, npcName: string, b64: string) {
 }
 
 /* ── Parse personality for profile display ── */
-function parsePersonalitySections(personality: string): { appearance?: string; traits?: string } {
+function parsePersonalitySections(personality: string): { appearance?: string; traits?: string; background?: string } {
   const apM = personality.match(/━━\s*NGOẠI HÌNH[^━]*━━\n?([\s\S]*?)(?=━━|$)/i);
   const trM = personality.match(/━━\s*TÍNH CÁCH[^━]*━━\n?([\s\S]*?)(?=━━|$)/i);
+  const firstSection = personality.search(/\n\n━━/);
+  const bg = (firstSection > 0 ? personality.slice(0, firstSection) : "").trim();
   const clean = (s?: string) => s?.replace(/\(AI phải[^)]*\)/gi, "").trim();
   return {
     appearance: clean(apM?.[1]),
     traits: clean(trM?.[1]),
+    background: bg || undefined,
   };
 }
 
@@ -189,8 +192,8 @@ function UserAvatar({ src, size }: { src: string | null; size: number }) {
 /* ═══════════════════════════════════════════════════
    A. CHARACTER PROFILE MODAL
 ═══════════════════════════════════════════════════ */
-function CharProfileModal({ character, charAvatarUrl, isOwner, onClose }: {
-  character: Character; charAvatarUrl: string | null; isOwner: boolean; onClose: () => void;
+function CharProfileModal({ character, charAvatarUrl, isOwner, onClose, onEdit }: {
+  character: Character; charAvatarUrl: string | null; isOwner: boolean; onClose: () => void; onEdit?: () => void;
 }) {
   const { appearance, traits, background } = parsePersonalitySections(character.personality);
 
@@ -208,9 +211,17 @@ function CharProfileModal({ character, charAvatarUrl, isOwner, onClose }: {
               <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399", borderRadius: 20, padding: "1px 8px", fontWeight: 600 }}>✦ Công khai</span>
             )}
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-            <X size={14} />
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+            {isOwner && onEdit && (
+              <button onClick={() => { onClose(); onEdit(); }}
+                style={{ height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(108,92,231,0.5)", background: "rgba(108,92,231,0.15)", color: "#c4b5fd", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+                ✏️ Chỉnh sửa
+              </button>
+            )}
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <X size={14} />
+            </button>
+          </div>
         </div>
 
         <div style={{ padding: "16px 18px 0" }}>
@@ -771,9 +782,9 @@ function PlusMenu({ onPhone, onGift, onFavorites, onMemory, giftCount, memoryCou
 /* ═══════════════════════════════════════════════════
    MAIN CHAT PAGE
 ═══════════════════════════════════════════════════ */
-interface Props { character: Character; onBack: () => void; }
+interface Props { character: Character; onBack: () => void; onEdit?: (char: Character) => void; }
 
-export default function ChatPage({ character, onBack }: Props) {
+export default function ChatPage({ character, onBack, onEdit }: Props) {
   const { user } = useAuth();
   const { keys, selectedModel, loading: keysLoading } = useKeys();
   const [safeMode, setSafeMode] = useState<boolean>(() => {
@@ -1016,7 +1027,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
                 ? <button onClick={() => { setProfileDraft(profile); setUserAvatarDraft(userAvatarUrl); setShowProfile(true); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><UserAvatar src={userAvatarUrl} size={32} /></button>
                 : <button onClick={() => setShowCharProfile(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><CharAvatar src={charAvatarUrl} emoji={character.avatar} size={32} /></button>
               }
-              <div style={{ maxWidth: "88%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
+              <div style={{ maxWidth: "90%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
                 <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(28,26,44,0.98)", fontSize: 14, lineHeight: 1.7, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 8px rgba(0,0,0,0.4)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.06)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {isUser ? msg.content : renderNovel(msg.content)}
                 </div>
@@ -1229,7 +1240,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
       )}
 
       {/* ══ CHARACTER PROFILE MODAL ══ */}
-      {showCharProfile && <CharProfileModal character={character} charAvatarUrl={charAvatarUrl} isOwner={isOwner} onClose={() => setShowCharProfile(false)} />}
+      {showCharProfile && <CharProfileModal character={character} charAvatarUrl={charAvatarUrl} isOwner={isOwner} onClose={() => setShowCharProfile(false)} onEdit={onEdit ? () => onEdit(character) : undefined} />}
 
       {/* ══ PHONE MODAL ══ */}
       {showPhone && <PhoneModal character={character} charAvatarUrl={charAvatarUrl} keys={keys} model={selectedModel} onClose={() => setShowPhone(false)} />}

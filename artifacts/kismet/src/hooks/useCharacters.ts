@@ -27,9 +27,7 @@ export function useCharacters() {
     if (!user) return;
     setLoading(true);
 
-    /* All public chars (filter approval in JS to avoid composite index) */
     const publicQuery = query(collection(db, "characters"), where("isPublic", "==", true));
-    /* User's own chars */
     const userQuery = query(collection(db, "characters"), where("createdBy", "==", user.uid));
 
     const [publicSnap, userSnap] = await Promise.all([getDocs(publicQuery), getDocs(userQuery)]);
@@ -39,7 +37,6 @@ export function useCharacters() {
 
     publicSnap.docs.forEach((d) => {
       const c = { id: d.id, ...d.data() } as Character;
-      /* Only show approved public chars to regular users */
       if (c.isApproved === true || isAdmin) {
         seen.add(d.id);
         all.push(c);
@@ -57,7 +54,6 @@ export function useCharacters() {
       return fetchCharacters();
     }
 
-    /* Pending approval list (for admin only) */
     if (isAdmin) {
       const pendingChars = publicSnap.docs
         .map(d => ({ id: d.id, ...d.data() } as Character))
@@ -78,11 +74,9 @@ export function useCharacters() {
 
   useEffect(() => { if (user) fetchCharacters(); }, [user]);
 
-  /** Returns new character ID so caller can save avatar */
   const addCharacter = async (char: Omit<Character, "id" | "createdBy">): Promise<string> => {
     if (!user) return "";
     const ref = collection(db, "characters");
-    /* Public chars need admin approval; private chars are immediately available */
     const isApproved = char.isPublic ? isAdmin : true;
     const docRef = await addDoc(ref, {
       ...char,
@@ -90,13 +84,20 @@ export function useCharacters() {
       createdBy: user.uid,
       createdAt: serverTimestamp(),
     });
-    /* Only show in list if approved */
     if (isApproved) {
       setCharacters((prev) => [...prev, { id: docRef.id, ...char, isApproved, createdBy: user.uid }]);
     } else {
       setPending((prev) => [...prev, { id: docRef.id, ...char, isApproved, createdBy: user.uid }]);
     }
     return docRef.id;
+  };
+
+  const updateCharacter = async (id: string, updates: Partial<Omit<Character, "id" | "createdBy">>) => {
+    if (!user) return;
+    await updateDoc(doc(db, "characters", id), { ...updates, updatedAt: serverTimestamp() });
+    const applyUpdate = (c: Character) => c.id === id ? { ...c, ...updates } : c;
+    setCharacters(prev => prev.map(applyUpdate));
+    setPending(prev => prev.map(applyUpdate));
   };
 
   const approveCharacter = async (id: string) => {
@@ -121,5 +122,10 @@ export function useCharacters() {
     setPending((prev) => prev.filter((c) => c.id !== id));
   };
 
-  return { characters, pending, loading, isAdmin, addCharacter, approveCharacter, rejectCharacter, removeCharacter, refetch: fetchCharacters };
+  return {
+    characters, pending, loading, isAdmin,
+    addCharacter, updateCharacter,
+    approveCharacter, rejectCharacter, removeCharacter,
+    refetch: fetchCharacters,
+  };
 }
