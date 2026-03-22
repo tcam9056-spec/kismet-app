@@ -2,18 +2,22 @@ import type { GeminiModel, Message } from "./types";
 
 export interface GeminiError { code: number; message: string; }
 
-/* ── Bảng ánh xạ cứng: tên hiển thị → ID thực trong Google API ── */
-const MODEL_ID_MAP: Record<string, string> = {
-  "gemini-2.5-flash": "gemini-1.5-flash",
-  "gemini-2.5-pro":   "gemini-1.5-pro",
-  "gemini-3.1-flash": "gemini-3.1-flash-preview",
-  "gemini-3.1-pro":   "gemini-3.1-pro-preview",
+/* ── Cấu hình cứng: tên hiển thị → { ID thực, API version } ── */
+const MODEL_CONFIG: Record<string, { apiId: string; version: "v1" | "v1beta" }> = {
+  "gemini-2.5-flash": { apiId: "gemini-2.5-flash", version: "v1" },
+  "gemini-2.5-pro":   { apiId: "gemini-2.5-pro",   version: "v1" },
+  "gemini-3.1-flash": { apiId: "gemini-3.1-flash-preview", version: "v1beta" },
+  "gemini-3.1-pro":   { apiId: "gemini-3.1-pro-preview",   version: "v1beta" },
 };
 
-function resolveModelId(model: string): string {
+function resolveModel(model: string): { mId: string; version: string } {
   const base = model.replace(/^models\//, "").trim();
-  const mapped = MODEL_ID_MAP[base] ?? base;
-  return `models/${mapped}`;
+  const cfg = MODEL_CONFIG[base] ?? { apiId: base, version: "v1" };
+  return { mId: `models/${cfg.apiId}`, version: cfg.version };
+}
+
+function buildUrl(mId: string, version: string, apiKey: string): string {
+  return `https://generativelanguage.googleapis.com/${version}/${mId}:generateContent?key=${apiKey}`;
 }
 
 export async function sendMessage(
@@ -24,8 +28,8 @@ export async function sendMessage(
   userMessage: string,
   maxOutputTokens: number = 4096
 ): Promise<string> {
-  const mId = resolveModelId(typeof model === "string" ? model : "gemini-2.5-flash");
-  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
+  const { mId, version } = resolveModel(typeof model === "string" ? model : "gemini-2.5-flash");
+  const url = buildUrl(mId, version, apiKey);
 
   const contents = history.map(msg => ({
     role: msg.role === "user" ? "user" : "model",
@@ -46,8 +50,10 @@ export async function sendMessage(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    const e = new Error((err as { error?: { message?: string } }).error?.message || `Lỗi ${response.status}`);
+    const errData = await response.json().catch(() => ({}));
+    const errMsg = (errData as { error?: { message?: string } }).error?.message || `Lỗi HTTP ${response.status}`;
+    console.error(`[Gemini] FAIL ${model} → ${mId} (${version}) | ${response.status}: ${errMsg}`);
+    const e = new Error(errMsg);
     (e as Error & { code: number }).code = response.status;
     throw e;
   }
@@ -60,11 +66,11 @@ export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Kiểm tra nhanh model với API key — dùng ID thực sau khi resolve */
+/** Kiểm tra nhanh — ping đúng ID + version của từng model */
 export async function testModel(apiKey: string, modelId: string): Promise<boolean> {
   try {
-    const mId = resolveModelId(modelId);
-    const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
+    const { mId, version } = resolveModel(modelId);
+    const url = buildUrl(mId, version, apiKey);
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -73,16 +79,21 @@ export async function testModel(apiKey: string, modelId: string): Promise<boolea
         generationConfig: { maxOutputTokens: 5 },
       }),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error(`[testModel] ${modelId} → ${mId} (${version}) | ${res.status}:`, (body as { error?: { message?: string } }).error?.message);
+    }
     return res.ok;
-  } catch {
+  } catch (e) {
+    console.error(`[testModel] ${modelId} exception:`, e);
     return false;
   }
 }
 
 /** Raw call — dùng cho phone/gift generation */
 export async function geminiRaw(apiKey: string, model: string, prompt: string, maxTokens = 2048): Promise<string> {
-  const mId = resolveModelId(typeof model === "string" ? model : "gemini-2.5-flash");
-  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
+  const { mId, version } = resolveModel(typeof model === "string" ? model : "gemini-2.5-flash");
+  const url = buildUrl(mId, version, apiKey);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -91,7 +102,12 @@ export async function geminiRaw(apiKey: string, model: string, prompt: string, m
       generationConfig: { temperature: 0.85, maxOutputTokens: maxTokens },
     }),
   });
-  if (!res.ok) throw new Error(`Lỗi AI (HTTP ${res.status})`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const msg = (body as { error?: { message?: string } }).error?.message || `HTTP ${res.status}`;
+    console.error(`[geminiRaw] ${model} → ${mId} | ${res.status}: ${msg}`);
+    throw new Error(msg);
+  }
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
