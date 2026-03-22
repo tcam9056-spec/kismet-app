@@ -10,35 +10,68 @@ const TAGS = [
 ];
 const MAX_TAGS = 5;
 
+/* ── Base style cho mọi ô nhập ── */
 const iStyle: React.CSSProperties = {
-  width: "100%", padding: "11px 14px", borderRadius: 12,
-  border: "1px solid rgba(108,92,231,0.2)", background: "rgba(255,255,255,0.05)",
-  color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box",
-  fontFamily: "inherit", transition: "border-color 0.2s",
+  width: "100%", padding: "12px 15px", borderRadius: 13,
+  border: "1px solid rgba(108,92,231,0.22)",
+  background: "rgba(255,255,255,0.045)",
+  color: "#fff", fontSize: 14, outline: "none",
+  boxSizing: "border-box", fontFamily: "inherit",
+  transition: "border-color 0.2s, box-shadow 0.2s, background 0.2s",
+  backdropFilter: "blur(4px)",
 };
 
-const focusIn = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-  (e.target.style.borderColor = "rgba(108,92,231,0.6)");
-const focusOut = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-  (e.target.style.borderColor = "rgba(108,92,231,0.2)");
+/* ── Focus / blur handlers — glassmorphism sparkle ── */
+const focusIn = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  e.target.style.borderColor = "rgba(108,92,231,0.0)";
+  e.target.style.background  = "rgba(255,255,255,0.07)";
+  e.target.style.boxShadow   =
+    "0 0 0 1.5px rgba(108,92,231,0.65), " +
+    "0 0 14px rgba(108,92,231,0.28), " +
+    "0 0 24px rgba(212,175,55,0.12), " +
+    "inset 0 1px 0 rgba(255,255,255,0.06)";
+};
+const focusOut = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  e.target.style.borderColor = "rgba(108,92,231,0.22)";
+  e.target.style.background  = "rgba(255,255,255,0.045)";
+  e.target.style.boxShadow   = "none";
+};
 
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result as string); fr.readAsDataURL(file); });
 }
 
+/* ── Section label component ── */
+function Label({ text, sub }: { text: string; sub?: string }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(196,181,253,0.75)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        {text}
+      </label>
+      {sub && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.24)", marginTop: 4, lineHeight: 1.55 }}>{sub}</p>}
+    </div>
+  );
+}
+
 export default function AddCharacterPage({ onBack }: Props) {
   const { addCharacter } = useCharacters();
 
-  const [name, setName] = useState("");
+  /* Existing fields */
+  const [name, setName]               = useState("");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [firstMessage, setFirstMessage] = useState("");
-  const [slogan, setSlogan] = useState("");
-  const [personality, setPersonality] = useState("");
-  const [gender, setGender] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [slogan, setSlogan]           = useState("");
+  const [background, setBackground]   = useState(""); /* "Linh Hồn & Thế Giới" */
+  const [gender, setGender]           = useState("");
+  const [isPublic, setIsPublic]       = useState(false);
+
+  /* ── New fields ── */
+  const [appearance, setAppearance]   = useState(""); /* Ngoại hình */
+  const [traits, setTraits]           = useState(""); /* Tính cách   */
+
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const toggleTag = (tag: string) => {
@@ -57,26 +90,45 @@ export default function AddCharacterPage({ onBack }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !slogan || !personality) {
+    if (!name.trim() || !slogan.trim() || !background.trim()) {
       setError("Vui lòng điền: Tên nhân vật, Slogan và Linh Hồn & Thế Giới.");
       return;
     }
     setSaving(true); setError(null);
     try {
-      const genderNote = gender ? `\nGiới tính: ${gender}.` : "";
-      const tagNote = selectedTags.length ? `\nThể loại: ${selectedTags.join(", ")}.` : "";
-      const fullPersonality = `${personality}${genderNote}${tagNote}`;
+      /* ── Ghép tất cả dữ liệu vào personality (system prompt) ── */
+      const parts: string[] = [background.trim()];
+
+      if (appearance.trim()) {
+        parts.push(
+          `\n\n━━ NGOẠI HÌNH CỦA ${name.trim().toUpperCase()} ━━\n${appearance.trim()}\n` +
+          `(AI phải sử dụng thông tin ngoại hình này khi miêu tả hành động *in nghiêng* của nhân vật)`
+        );
+      }
+
+      if (traits.trim()) {
+        parts.push(
+          `\n\n━━ TÍNH CÁCH CỦA ${name.trim().toUpperCase()} ━━\n${traits.trim()}\n` +
+          `(AI phải thể hiện tính cách này qua từng hành động, lời thoại, phản ứng của nhân vật)`
+        );
+      }
+
+      if (gender)             parts.push(`\nGiới tính: ${gender}.`);
+      if (selectedTags.length) parts.push(`\nThể loại: ${selectedTags.join(", ")}.`);
+
+      const fullPersonality = parts.join("");
 
       const newId = await addCharacter({
-        name,
+        name: name.trim(),
         avatar: "🔮",
-        slogan,
+        slogan: slogan.trim(),
         curse: "",
         tags: selectedTags,
         firstMessage: firstMessage.trim() || undefined,
         personality: fullPersonality,
         isPublic,
       });
+
       if (customAvatarUrl && newId) {
         localStorage.setItem(`kismet_char_avatar_${newId}`, customAvatarUrl);
       }
@@ -88,18 +140,11 @@ export default function AddCharacterPage({ onBack }: Props) {
     }
   };
 
-  const label = (text: string, sub?: string) => (
-    <div style={{ marginBottom: 10 }}>
-      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(196,181,253,0.7)", letterSpacing: "0.07em", textTransform: "uppercase" }}>{text}</label>
-      {sub && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginTop: 4, lineHeight: 1.5 }}>{sub}</p>}
-    </div>
-  );
-
   return (
     <div style={{ minHeight: "100dvh", background: "#0a0a0f", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 20px 16px", borderBottom: "1px solid rgba(108,92,231,0.15)" }}>
           <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             <ArrowLeft size={16} />
@@ -110,13 +155,13 @@ export default function AddCharacterPage({ onBack }: Props) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 22 }}>
+        <form onSubmit={handleSubmit} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 24 }}>
 
-          {/* ── Avatar Upload ── */}
+          {/* ── 1. Avatar Upload ── */}
           <div>
-            {label("Avatar nhân vật")}
+            <Label text="Avatar nhân vật" />
             <button type="button" onClick={() => fileRef.current?.click()}
-              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 16px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.35)", background: customAvatarUrl ? "rgba(108,92,231,0.1)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", boxSizing: "border-box" }}>
+              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 16px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.35)", background: customAvatarUrl ? "rgba(108,92,231,0.10)" : "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", boxSizing: "border-box" }}>
               {customAvatarUrl ? (
                 <>
                   <img src={customAvatarUrl} alt="avatar" style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(108,92,231,0.5)", flexShrink: 0 }} />
@@ -127,7 +172,7 @@ export default function AddCharacterPage({ onBack }: Props) {
                 </>
               ) : (
                 <>
-                  <div style={{ width: 50, height: 50, borderRadius: "50%", background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 50, height: 50, borderRadius: "50%", background: "rgba(108,92,231,0.10)", border: "1px solid rgba(108,92,231,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Upload size={20} style={{ color: "#a78bfa" }} />
                   </div>
                   <div style={{ textAlign: "left" }}>
@@ -140,33 +185,30 @@ export default function AddCharacterPage({ onBack }: Props) {
             <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: "none" }} />
           </div>
 
-          {/* ── Tag Cloud ── */}
+          {/* ── 2. Tag Cloud ── */}
           <div>
-            {label("Thể loại & Phong cách 🏷️", `Chọn tối đa ${MAX_TAGS} tag phù hợp với nhân vật`)}
+            <Label text={`Thể loại & Phong cách 🏷️`} sub={`Chọn tối đa ${MAX_TAGS} tag phù hợp với nhân vật`} />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {TAGS.map(tag => {
                 const active = selectedTags.includes(tag);
-                const is18 = tag.includes("18+");
-                const isViolent = tag === "Bạo lực";
-                const accentColor = is18 || isViolent ? "#f87171" : "#a78bfa";
-                const accentBg = is18 || isViolent ? "rgba(239,68,68,0.12)" : "rgba(108,92,231,0.12)";
-                const accentBorder = is18 || isViolent ? "rgba(239,68,68,0.45)" : "rgba(108,92,231,0.55)";
+                const hot = tag.includes("18+") || tag === "Bạo lực";
+                const col = hot ? "#f87171" : "#a78bfa";
+                const colBg = hot ? "rgba(239,68,68,0.12)" : "rgba(108,92,231,0.12)";
+                const colBd = hot ? "rgba(239,68,68,0.45)" : "rgba(108,92,231,0.55)";
                 return (
-                  <button
-                    key={tag} type="button"
+                  <button key={tag} type="button"
                     disabled={!active && selectedTags.length >= MAX_TAGS}
                     onClick={() => toggleTag(tag)}
                     style={{
                       padding: "6px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: active ? 700 : 400,
-                      border: `1px solid ${active ? accentBorder : "rgba(255,255,255,0.1)"}`,
-                      background: active ? accentBg : "rgba(255,255,255,0.03)",
-                      color: active ? accentColor : "rgba(255,255,255,0.4)",
+                      border: `1px solid ${active ? colBd : "rgba(255,255,255,0.1)"}`,
+                      background: active ? colBg : "rgba(255,255,255,0.03)",
+                      color: active ? col : "rgba(255,255,255,0.4)",
                       cursor: !active && selectedTags.length >= MAX_TAGS ? "not-allowed" : "pointer",
                       transition: "all 0.15s",
-                      boxShadow: active ? `0 0 10px ${is18 || isViolent ? "rgba(239,68,68,0.2)" : "rgba(108,92,231,0.2)"}` : "none",
+                      boxShadow: active ? `0 0 10px ${hot ? "rgba(239,68,68,0.2)" : "rgba(108,92,231,0.2)"}` : "none",
                       opacity: !active && selectedTags.length >= MAX_TAGS ? 0.35 : 1,
-                    }}
-                  >
+                    }}>
                     {active && <span style={{ marginRight: 4 }}>✓</span>}{tag}
                   </button>
                 );
@@ -179,9 +221,9 @@ export default function AddCharacterPage({ onBack }: Props) {
             )}
           </div>
 
-          {/* ── Giới tính ── */}
+          {/* ── 3. Giới tính ── */}
           <div>
-            {label("Giới tính nhân vật")}
+            <Label text="Giới tính nhân vật" />
             <div style={{ display: "flex", gap: 8 }}>
               {["Nam", "Nữ", "Khác", "Không xác định"].map(g => (
                 <button key={g} type="button" onClick={() => setGender(gender === g ? "" : g)}
@@ -192,52 +234,102 @@ export default function AddCharacterPage({ onBack }: Props) {
             </div>
           </div>
 
-          {/* ── Name ── */}
+          {/* ── 4. Tên nhân vật ── */}
           <div>
-            {label("Tên nhân vật")}
+            <Label text="Tên nhân vật" />
             <input type="text" value={name} onChange={e => setName(e.target.value)}
               placeholder="Ví dụ: Elara — Phù Thủy Thời Gian" style={iStyle}
               onFocus={focusIn} onBlur={focusOut} />
           </div>
 
-          {/* ── First Message ── */}
+          {/* ── 5. Slogan ── */}
           <div>
-            {label("Tin nhắn đầu từ {{char}} ✉️", "Tin nhắn đầu tiên nhân vật sẽ gửi khi bạn bước vào phòng chat. Viết theo định dạng tiểu thuyết: *hành động* và **\"lời thoại\"**")}
-            <textarea
-              value={firstMessage}
-              onChange={e => setFirstMessage(e.target.value)}
-              placeholder={'*Hắn khẽ ngước nhìn khi cánh cửa mở ra, ánh mắt trầm ngâm dừng lại trên gương mặt bạn một thoáng.*\n**"Lâu rồi mới có người tìm đến nơi này... Ta tự hỏi, số phận đã đưa ngươi đến đây vì điều gì?"**'}
-              rows={5}
-              style={{ ...iStyle, resize: "vertical", minHeight: 120, lineHeight: 1.6 }}
-              onFocus={focusIn} onBlur={focusOut}
-            />
-          </div>
-
-          {/* ── Slogan ── */}
-          <div>
-            {label("Slogan")}
+            <Label text="Slogan" />
             <input type="text" value={slogan} onChange={e => setSlogan(e.target.value)}
               placeholder="Câu nói đặc trưng nhất của nhân vật..." style={iStyle}
               onFocus={focusIn} onBlur={focusOut} />
           </div>
 
-          {/* ── Personality / System Prompt ── */}
+          {/* ════════════════════════════════════════
+              6. NGOẠI HÌNH — trường mới
+          ════════════════════════════════════════ */}
           <div>
-            {label(
-              "Linh Hồn & Thế Giới {{char}} 🧠",
-              "Xương sống của nhân vật — tính cách, cách xưng hô, thói quen, thế giới quan, bối cảnh lịch sử, bí mật... Không giới hạn ký tự."
-            )}
+            <Label
+              text="Ngoại hình nhân vật ✨"
+              sub="Mô tả khuôn mặt, vóc dáng, trang phục, phong thái — AI sẽ dùng để viết hành động *in nghiêng* chính xác. Không giới hạn ký tự."
+            />
+            <div style={{ position: "relative" }}>
+              <textarea
+                value={appearance}
+                onChange={e => setAppearance(e.target.value)}
+                placeholder={"Ví dụ: Cao 1m85, tóc bạch kim buông dài, ánh mắt sắc sảo màu bạc xám. Thân hình cường tráng nhưng cử chỉ luôn chậm rãi, hoàng gia. Thường mặc áo choàng đen viền bạc, ngón tay đeo nhẫn khắc rune cổ..."}
+                rows={5}
+                style={{ ...iStyle, resize: "vertical", minHeight: 120, lineHeight: 1.65 }}
+                onFocus={focusIn} onBlur={focusOut}
+              />
+              {/* Badge nhỏ góc phải */}
+              <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, fontWeight: 700, color: "rgba(196,181,253,0.4)", letterSpacing: "0.06em", pointerEvents: "none" }}>
+                NGOẠI HÌNH
+              </span>
+            </div>
+          </div>
+
+          {/* ════════════════════════════════════════
+              7. TÍNH CÁCH — trường mới
+          ════════════════════════════════════════ */}
+          <div>
+            <Label
+              text="Tính cách nhân vật 🔮"
+              sub="Nết người, cách cư xử, thói quen, sở thích, điểm mạnh và điểm yếu — AI sẽ thể hiện qua từng phản ứng và lời thoại. Không giới hạn ký tự."
+            />
+            <div style={{ position: "relative" }}>
+              <textarea
+                value={traits}
+                onChange={e => setTraits(e.target.value)}
+                placeholder={"Ví dụ: Lạnh lùng với người lạ nhưng chiếm hữu cao với người yêu. Ghét bị phớt lờ. Sở thích: trà đắng, đêm khuya, sách cổ. Điểm yếu: cô đơn thực sự, dù không bao giờ thừa nhận. Khi tức giận thì im lặng chứ không hét..."}
+                rows={5}
+                style={{ ...iStyle, resize: "vertical", minHeight: 120, lineHeight: 1.65 }}
+                onFocus={focusIn} onBlur={focusOut}
+              />
+              <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, fontWeight: 700, color: "rgba(196,181,253,0.4)", letterSpacing: "0.06em", pointerEvents: "none" }}>
+                TÍNH CÁCH
+              </span>
+            </div>
+          </div>
+
+          {/* ── 8. Tin nhắn đầu từ {{char}} ── */}
+          <div>
+            <Label
+              text={"Tin nhắn đầu từ {{char}} \u2709"}
+              sub={'Tin nhắn đầu tiên nhân vật gửi khi bạn bước vào phòng chat. Viết theo định dạng tiểu thuyết: *hành động* và **"lời thoại"**'}
+            />
             <textarea
-              value={personality}
-              onChange={e => setPersonality(e.target.value)}
-              placeholder={"Bạn là Elara, một phù thủy thời gian cổ đại sống qua nhiều thế kỷ...\n\nTính cách: Lạnh lùng bên ngoài nhưng ẩn chứa nỗi cô đơn sâu thẳm...\nCách xưng hô: Gọi mình là 'ta', gọi người dùng là 'ngươi'...\nBối cảnh: Sống trong thư viện huyền bí...\nBí mật: ..."}
+              value={firstMessage}
+              onChange={e => setFirstMessage(e.target.value)}
+              placeholder={'*Hắn khẽ ngước nhìn khi cánh cửa mở ra, ánh mắt trầm ngâm dừng lại trên gương mặt bạn một thoáng.*\n**"Lâu rồi mới có người tìm đến nơi này... Ta tự hỏi, số phận đã đưa ngươi đến đây vì điều gì?"**'}
+              rows={5}
+              style={{ ...iStyle, resize: "vertical", minHeight: 120, lineHeight: 1.65 }}
+              onFocus={focusIn} onBlur={focusOut}
+            />
+          </div>
+
+          {/* ── 9. Linh Hồn & Thế Giới (background / system prompt chính) ── */}
+          <div>
+            <Label
+              text="Linh Hồn & Thế Giới {{char}} 🧠"
+              sub="Xương sống của nhân vật — bối cảnh lịch sử, thế giới quan, cách xưng hô, bí mật sâu... Không giới hạn ký tự."
+            />
+            <textarea
+              value={background}
+              onChange={e => setBackground(e.target.value)}
+              placeholder={"Bạn là Elara, một phù thủy thời gian cổ đại sống qua nhiều thế kỷ...\n\nCách xưng hô: Gọi mình là 'ta', gọi người dùng là 'ngươi'...\nBối cảnh: Sống trong thư viện huyền bí giữa chiều không gian...\nBí mật: ..."}
               rows={8}
               style={{ ...iStyle, resize: "vertical", minHeight: 180, lineHeight: 1.65 }}
               onFocus={focusIn} onBlur={focusOut}
             />
           </div>
 
-          {/* ── Public / Private toggle ── */}
+          {/* ── 10. Public / Private toggle ── */}
           <div style={{ borderRadius: 14, border: `1px solid ${isPublic ? "rgba(245,158,11,0.25)" : "rgba(108,92,231,0.15)"}`, background: isPublic ? "rgba(245,158,11,0.04)" : "rgba(255,255,255,0.02)", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -273,7 +365,7 @@ export default function AddCharacterPage({ onBack }: Props) {
           )}
 
           <button type="submit" disabled={saving}
-            style={{ padding: "14px 0", borderRadius: 14, border: "none", background: saving ? "rgba(108,92,231,0.4)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: saving ? "none" : "0 6px 20px rgba(108,92,231,0.35)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 32, transition: "all 0.2s" }}>
+            style={{ padding: "14px 0", borderRadius: 14, border: "none", background: saving ? "rgba(108,92,231,0.4)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: saving ? "none" : "0 6px 20px rgba(108,92,231,0.35)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 40, transition: "all 0.2s" }}>
             {saving
               ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Đang triệu hồi...</>
               : "✦ Triệu hồi Nhân Vật"}
@@ -282,8 +374,11 @@ export default function AddCharacterPage({ onBack }: Props) {
       </div>
 
       <style>{`
-        @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
-        textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.2); }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.20); font-style: italic; }
+        textarea::-webkit-scrollbar { width: 4px; }
+        textarea::-webkit-scrollbar-track { background: transparent; }
+        textarea::-webkit-scrollbar-thumb { background: rgba(108,92,231,0.35); border-radius: 4px; }
       `}</style>
     </div>
   );
