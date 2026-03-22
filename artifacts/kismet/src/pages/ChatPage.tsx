@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ArrowLeft, Send, Trash2, X, Loader2, Camera, Plus,
-  Phone, Gift, Heart, ChevronLeft
+  Phone, Gift, Heart, ChevronLeft, Shield, ShieldOff, CheckCircle2, MapPin
 } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { useKeys } from "@/hooks/useKeys";
@@ -356,13 +356,14 @@ function GiftModal({ gifts, charName, onClose }: { gifts: GiftItem[]; charName: 
 /* ═══════════════════════════════════════════════════
    PLUS MENU
 ═══════════════════════════════════════════════════ */
-function PlusMenu({ onPhone, onGift, onFavorites, giftCount, onClose }: {
+function PlusMenu({ onPhone, onGift, onFavorites, giftCount, onClose, safeMode, onToggleSafeMode, modelName }: {
   onPhone: () => void; onGift: () => void; onFavorites: () => void; giftCount: number; onClose: () => void;
+  safeMode: boolean; onToggleSafeMode: () => void; modelName: string;
 }) {
   const btn = (icon: React.ReactNode, label: string, badge: number, onClick: () => void, color: string) => (
     <button onClick={() => { onClick(); onClose(); }}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 20px", borderRadius: 16, border: `1px solid ${color}20`, background: `${color}10`, cursor: "pointer", position: "relative", minWidth: 72 }}>
-      <div style={{ width: 44, height: 44, borderRadius: 14, background: `${color}20`, border: `1px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 16px", borderRadius: 16, border: `1px solid ${color}20`, background: `${color}10`, cursor: "pointer", position: "relative", minWidth: 68, flex: 1 }}>
+      <div style={{ width: 42, height: 42, borderRadius: 13, background: `${color}20`, border: `1px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
         {icon}
       </div>
       <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{label}</span>
@@ -373,13 +374,49 @@ function PlusMenu({ onPhone, onGift, onFavorites, giftCount, onClose }: {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 250 }} onClick={onClose}>
       <div style={{ position: "absolute", bottom: 76, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 448 }} onClick={e => e.stopPropagation()}>
-        <div style={{ background: "rgba(20,18,34,0.98)", border: "1px solid rgba(108,92,231,0.25)", borderRadius: 20, padding: "18px 16px", backdropFilter: "blur(20px)", boxShadow: "0 -8px 32px rgba(0,0,0,0.5)" }}>
-          <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 14, textAlign: "center" }}>Tính năng</p>
-          <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
-            {btn(<Phone size={20} />, "Điện thoại", 0, onPhone, "#6c5ce7")}
-            {btn(<Gift size={20} />, "Quà tặng", giftCount, onGift, "#f59e0b")}
-            {btn(<Heart size={20} />, "Yêu thích", 0, onFavorites, "#ec4899")}
+        <div style={{ background: "rgba(20,18,34,0.98)", border: "1px solid rgba(108,92,231,0.25)", borderRadius: 20, padding: "16px 16px 18px", backdropFilter: "blur(20px)", boxShadow: "0 -8px 32px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* ── 1. Toggle 18+ ── */}
+          <div
+            onClick={onToggleSafeMode}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, border: `1px solid ${safeMode ? "rgba(108,92,231,0.2)" : "rgba(239,68,68,0.3)"}`, background: safeMode ? "rgba(108,92,231,0.07)" : "rgba(239,68,68,0.08)", cursor: "pointer" }}
+          >
+            <div style={{ width: 36, height: 36, borderRadius: 11, background: safeMode ? "rgba(108,92,231,0.15)" : "rgba(239,68,68,0.15)", border: `1px solid ${safeMode ? "rgba(108,92,231,0.3)" : "rgba(239,68,68,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", color: safeMode ? "#a78bfa" : "#f87171", flexShrink: 0 }}>
+              {safeMode ? <Shield size={17} /> : <ShieldOff size={17} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 1 }}>
+                {safeMode ? "🔒 Lọc nội dung nhạy cảm" : "🔞 Chế độ 18+ (Không kiểm duyệt)"}
+              </p>
+              <p style={{ fontSize: 11, color: safeMode ? "rgba(167,139,250,0.5)" : "rgba(248,113,113,0.6)" }}>
+                {safeMode ? "Bật — Nội dung an toàn" : "Tắt — Nhân vật phản hồi tự do"}
+              </p>
+            </div>
+            {/* Toggle pill */}
+            <div style={{ width: 44, height: 26, borderRadius: 13, background: safeMode ? "rgba(108,92,231,0.3)" : "#dc2626", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: safeMode ? 3 : 21, transition: "left 0.2s" }} />
+            </div>
           </div>
+
+          {/* ── 2. Model status ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 14, border: "1px solid rgba(52,211,153,0.2)", background: "rgba(52,211,153,0.05)" }}>
+            <CheckCircle2 size={16} style={{ color: "#34d399", flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Model đang dùng</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#34d399", marginTop: 1 }}>{modelName}</p>
+            </div>
+          </div>
+
+          {/* ── 3. Feature buttons ── */}
+          <div>
+            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 10, textAlign: "center" }}>Tính năng</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              {btn(<Phone size={19} />, "Điện thoại", 0, onPhone, "#6c5ce7")}
+              {btn(<Gift size={19} />, "Quà tặng", giftCount, onGift, "#f59e0b")}
+              {btn(<Heart size={19} />, "Yêu thích", 0, onFavorites, "#ec4899")}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -394,13 +431,15 @@ interface Props { character: Character; onBack: () => void; }
 export default function ChatPage({ character, onBack }: Props) {
   const { user } = useAuth();
   const { keys, selectedModel, loading: keysLoading } = useKeys();
+  const [safeMode, setSafeMode] = useState(true);
   const { messages, loading, sending, statusText, error, send, clearHistory } =
-    useChat(character, keys, selectedModel as GeminiModel);
+    useChat(character, keys, selectedModel as GeminiModel, safeMode);
 
   const email = user?.email || user?.uid || "";
 
   /* ── state ── */
   const [input, setInput] = useState("");
+  const [quickContext, setQuickContext] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showCharProfile, setShowCharProfile] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
@@ -481,9 +520,9 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
     const text = input.trim();
     if (!text || sending) return;
     setInput("");
-    send(text);
+    send(text, quickContext.trim() || undefined);
     setTimeout(() => inputRef.current?.focus(), 50);
-  }, [input, sending, send]);
+  }, [input, sending, send, quickContext]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -627,6 +666,24 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
         </div>
       )}
 
+      {/* ══ QUICK CONTEXT STRIP ══ */}
+      <div style={{ background: "#0f0d1a", padding: "6px 14px 0", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 10, border: "1px solid rgba(108,92,231,0.15)", background: "rgba(108,92,231,0.05)" }}>
+          <MapPin size={11} style={{ color: "rgba(167,139,250,0.4)", flexShrink: 0 }} />
+          <input
+            value={quickContext}
+            onChange={e => setQuickContext(e.target.value)}
+            placeholder="Bối cảnh hiện tại... (vd: Trong phòng ngủ tối, Bên bờ suối)"
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: "rgba(255,255,255,0.65)", fontSize: 11.5, fontFamily: "inherit", placeholder: "rgba(167,139,250,0.3)" }}
+          />
+          {quickContext && (
+            <button onClick={() => setQuickContext("")} style={{ background: "none", border: "none", color: "rgba(167,139,250,0.35)", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+              <X size={11} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ══ INPUT BAR ══ */}
       <div style={{ borderTop: "1px solid rgba(108,92,231,0.15)", background: "#0f0d1a", padding: "10px 14px", display: "flex", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
         {/* + button */}
@@ -664,6 +721,9 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
           onFavorites={() => { setShowGift(true); setNewGiftCount(0); }}
           giftCount={newGiftCount}
           onClose={() => setShowPlusMenu(false)}
+          safeMode={safeMode}
+          onToggleSafeMode={() => setSafeMode(v => !v)}
+          modelName={selectedModel}
         />
       )}
 
