@@ -387,22 +387,6 @@ export default function SettingsPage({ onBack }: Props) {
             </div>
           </div>
 
-          {/* ── FIRESTORE RULES HINT ── */}
-          <div style={{ padding: 16, borderRadius: 14, background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.15)" }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#93c5fd", marginBottom: 8 }}>📋 Firestore Security Rules</p>
-            <p style={{ fontSize: 12, color: "rgba(147,197,253,0.6)", marginBottom: 8, lineHeight: 1.5 }}>
-              Nếu không tải được chat, vào Firestore Console → Rules → dán:
-            </p>
-            <pre style={{ background: "rgba(0,0,0,0.4)", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.5)", overflowX: "auto", fontFamily: "monospace", lineHeight: 1.5, margin: 0 }}>{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}`}</pre>
-          </div>
-
           {/* ── SAVE BUTTON ── */}
           <button
             onClick={handleSave}

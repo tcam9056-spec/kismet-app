@@ -23,20 +23,10 @@ export function useCharacters() {
     if (!user) return;
     setLoading(true);
 
-    const publicQuery = query(
-      collection(db, "characters"),
-      where("isPublic", "==", true)
-    );
+    const publicQuery = query(collection(db, "characters"), where("isPublic", "==", true));
+    const userQuery = query(collection(db, "characters"), where("createdBy", "==", user.uid));
 
-    const userQuery = query(
-      collection(db, "characters"),
-      where("createdBy", "==", user.uid)
-    );
-
-    const [publicSnap, userSnap] = await Promise.all([
-      getDocs(publicQuery),
-      getDocs(userQuery),
-    ]);
+    const [publicSnap, userSnap] = await Promise.all([getDocs(publicQuery), getDocs(userQuery)]);
 
     const seen = new Set<string>();
     const all: Character[] = [];
@@ -47,9 +37,7 @@ export function useCharacters() {
     });
 
     userSnap.docs.forEach((d) => {
-      if (!seen.has(d.id)) {
-        all.push({ id: d.id, ...d.data() } as Character);
-      }
+      if (!seen.has(d.id)) all.push({ id: d.id, ...d.data() } as Character);
     });
 
     if (all.length === 0) {
@@ -68,20 +56,19 @@ export function useCharacters() {
     }
   };
 
-  useEffect(() => {
-    if (user) fetchCharacters();
-  }, [user]);
+  useEffect(() => { if (user) fetchCharacters(); }, [user]);
 
-  const addCharacter = async (char: Omit<Character, "id" | "createdBy">) => {
-    if (!user) return;
+  /* Returns new character ID so caller can save avatar */
+  const addCharacter = async (char: Omit<Character, "id" | "createdBy">): Promise<string> => {
+    if (!user) return "";
     const ref = collection(db, "characters");
     const docRef = await addDoc(ref, {
       ...char,
       createdBy: user.uid,
-      isPublic: false,
       createdAt: serverTimestamp(),
     });
     setCharacters((prev) => [...prev, { id: docRef.id, ...char, createdBy: user.uid }]);
+    return docRef.id;
   };
 
   const removeCharacter = async (id: string) => {
