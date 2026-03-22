@@ -6,7 +6,7 @@ export interface GeminiError { code: number; message: string; }
 const MODEL_ID_MAP: Record<string, string> = {
   "gemini-2.5-flash": "gemini-1.5-flash",
   "gemini-2.5-pro":   "gemini-1.5-pro",
-  "gemini-3.1-flash": "gemini-3.1-flash-lite-preview",
+  "gemini-3.1-flash": "gemini-3.1-flash-preview",
   "gemini-3.1-pro":   "gemini-3.1-pro-preview",
 };
 
