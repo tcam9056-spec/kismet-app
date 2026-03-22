@@ -86,257 +86,317 @@ async function loadImg(src: string): Promise<HTMLImageElement | null> {
 }
 
 /* ══════════════════════════════════════════════════
-   MEMORY SHARD — SPARKLE SHARE CARD GENERATOR
-   Tỉ lệ 16:9 ngang · QR lớn · Lấp lánh bí ẩn
+   KISMET TAROT CARD — Glassmorphism 1:1
+   Kính mờ · Chiều sâu 3D · Vũ trụ bí ẩn · 500×500
 ══════════════════════════════════════════════════ */
 async function generateShareCard(char: Character, avatarSrc: string | null, creatorName: string, code: string): Promise<string> {
-  const W = 640, H = 360;
+  const W = 500, H = 500;
   const canvas = document.createElement("canvas");
   canvas.width = W * 2; canvas.height = H * 2;
   const ctx = canvas.getContext("2d")!;
   ctx.scale(2, 2);
 
-  /* ═══════════════════════════════════════════════════
-     LAYOUT 16:9 NGANG
-     Left  (0..296):   Avatar + Tên + Slogan + Tags
-     Divider (297..303): dải ánh sáng dọc
-     Right (304..628):  KISMET + Personality + QR
-  ═══════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════
+     1. NỀN VŨ TRỤ — deep cosmic radial + nebula overlays
+  ═══════════════════════════════════════════════════════════ */
+  const bg = ctx.createRadialGradient(W / 2, H * 0.38, 0, W / 2, H * 0.38, W * 0.85);
+  bg.addColorStop(0,   "#1b0d42");
+  bg.addColorStop(0.45,"#0c052a");
+  bg.addColorStop(0.75,"#060318");
+  bg.addColorStop(1,   "#020110");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  /* ── 1. Nền vũ trụ ── */
-  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0, "#0d0525"); bgGrad.addColorStop(0.5, "#080320"); bgGrad.addColorStop(1, "#050218");
-  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
-
-  /* Nebula overlays */
   [
-    { x: 150, y: 150, r: 200, c: "rgba(108,92,231,0.22)" },
-    { x: 470, y: 200, r: 200, c: "rgba(79,70,229,0.18)" },
-    { x: 70,  y: 300, r: 130, c: "rgba(147,51,234,0.12)" },
-    { x: 580, y: 80,  r: 120, c: "rgba(212,175,55,0.09)" },
+    { x: W * 0.5,  y: H * 0.32, r: 210, c: "rgba(108,92,231,0.28)" },
+    { x: W * 0.18, y: H * 0.5,  r: 150, c: "rgba(147,51,234,0.16)" },
+    { x: W * 0.82, y: H * 0.45, r: 140, c: "rgba(212,175,55,0.11)" },
+    { x: W * 0.5,  y: H * 0.88, r: 190, c: "rgba(79,70,229,0.20)"  },
+    { x: W * 0.25, y: H * 0.08, r: 130, c: "rgba(167,139,250,0.12)" },
   ].forEach(({ x, y, r, c }) => {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, c); g.addColorStop(1, "transparent");
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   });
 
-  /* ── 2. Glassmorphism panel ── */
-  const pm = 10;
-  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 18);
-  ctx.fillStyle = "rgba(255,255,255,0.025)"; ctx.fill();
-  const hl = ctx.createLinearGradient(pm, pm, pm, pm + 50);
-  hl.addColorStop(0, "rgba(255,255,255,0.055)"); hl.addColorStop(1, "transparent");
-  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 18); ctx.fillStyle = hl; ctx.fill();
-  const gs = ctx.createLinearGradient(pm, pm, W - pm, H - pm);
-  gs.addColorStop(0, "rgba(212,175,55,0.5)"); gs.addColorStop(0.4, "rgba(167,139,250,0.28)");
-  gs.addColorStop(0.6, "rgba(108,92,231,0.32)"); gs.addColorStop(1, "rgba(212,175,55,0.45)");
-  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 18); ctx.strokeStyle = gs; ctx.lineWidth = 1.2; ctx.stroke();
-
-  /* ── 3. Hạt lấp lánh ── */
-  const rand = (() => { let s = 91; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })();
-  const scolors = ["rgba(255,255,255,A)", "rgba(212,175,55,A)", "rgba(200,180,255,A)", "rgba(167,139,250,A)"];
-  for (let i = 0; i < 55; i++) {
-    const sx = pm + rand() * (W - pm * 2), sy = pm + rand() * (H - pm * 2);
-    const sz = 0.5 + rand() * 2, al = (0.15 + rand() * 0.65).toFixed(2);
-    ctx.fillStyle = scolors[Math.floor(rand() * 4)].replace("A", al);
-    if (rand() > 0.5) {
-      ctx.beginPath(); ctx.arc(sx, sy, sz * 0.65, 0, Math.PI * 2); ctx.fill();
-    } else {
-      const s2 = sz * 1.3;
-      ctx.fillRect(sx - s2 * 0.11, sy - s2, s2 * 0.22, s2 * 2);
-      ctx.fillRect(sx - s2, sy - s2 * 0.11, s2 * 2, s2 * 0.22);
-    }
-  }
-
-  /* ════════ LEFT PANEL (x: 0..296) ════════ */
-  const LCX = 152;  /* center x */
-  const avatarR = 52, avatarCY = 147;
-
-  /* Avatar ghost blur */
+  /* ═══════════════════════════════════════════════════════════
+     2. AVATAR MISTY-GLASSY BACKGROUND — làm mờ cực mạnh
+  ═══════════════════════════════════════════════════════════ */
+  const AX = W / 2, AY = 165, AR = 66;
   if (avatarSrc) {
     const img = await loadImg(avatarSrc);
     if (img) {
-      ctx.save();
-      ctx.filter = "blur(28px)"; ctx.globalAlpha = 0.20;
-      /* clip to left panel so ghost doesn't spill over */
-      ctx.beginPath(); ctx.rect(pm, pm, 290 - pm, H - pm * 2); ctx.clip();
-      ctx.drawImage(img, LCX - 110, avatarCY - 110, 220, 220);
+      /* Lớp 1: blur cực mạnh, phủ rộng — tạo nền misty */
+      ctx.save(); ctx.filter = "blur(40px)"; ctx.globalAlpha = 0.32;
+      ctx.drawImage(img, AX - 170, AY - 170, 340, 340);
+      ctx.restore();
+      /* Lớp 2: blur vừa, nhỏ hơn — tạo hào quang trực tiếp */
+      ctx.save(); ctx.filter = "blur(18px)"; ctx.globalAlpha = 0.18;
+      ctx.drawImage(img, AX - 110, AY - 110, 220, 220);
       ctx.restore();
     }
   }
 
-  /* Glow rings */
-  [{ r: avatarR + 26, a: 0.07 }, { r: avatarR + 13, a: 0.16 }, { r: avatarR + 4, a: 0.32 }].forEach(({ r, a }) => {
-    const g = ctx.createRadialGradient(LCX, avatarCY, r - 12, LCX, avatarCY, r + 12);
-    g.addColorStop(0, `rgba(108,92,231,${a})`); g.addColorStop(0.5, `rgba(212,175,55,${a * 0.5})`); g.addColorStop(1, "transparent");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(LCX, avatarCY, r + 14, 0, Math.PI * 2); ctx.fill();
+  /* ═══════════════════════════════════════════════════════════
+     3. GLASSMORPHISM PANEL — kính mờ có chiều sâu 3D
+  ═══════════════════════════════════════════════════════════ */
+  const pm = 13;
+  /* Lớp đáy tối */
+  rr(ctx, pm + 2, pm + 5, W - pm * 2 - 4, H - pm * 2 - 4, 22);
+  ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fill();
+  /* Mặt kính chính */
+  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 22);
+  ctx.fillStyle = "rgba(255,255,255,0.038)"; ctx.fill();
+  /* Highlight trên cùng — hiệu ứng phản chiếu ánh sáng */
+  const hlG = ctx.createLinearGradient(pm, pm, pm, pm + 80);
+  hlG.addColorStop(0, "rgba(255,255,255,0.09)");
+  hlG.addColorStop(0.5, "rgba(255,255,255,0.025)");
+  hlG.addColorStop(1, "transparent");
+  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 22); ctx.fillStyle = hlG; ctx.fill();
+  /* Highlight cạnh trái */
+  const hlL = ctx.createLinearGradient(pm, pm, pm + 60, pm);
+  hlL.addColorStop(0, "rgba(255,255,255,0.06)"); hlL.addColorStop(1, "transparent");
+  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 22); ctx.fillStyle = hlL; ctx.fill();
+
+  /* ═══════════════════════════════════════════════════════════
+     4. TAROT BORDER FRAME — viền vàng sang trọng
+  ═══════════════════════════════════════════════════════════ */
+  /* Outer glow */
+  for (let i = 3; i >= 0; i--) {
+    const a = 0.06 + i * 0.04;
+    rr(ctx, pm - i, pm - i, W - pm * 2 + i * 2, H - pm * 2 + i * 2, 22 + i);
+    const og = ctx.createLinearGradient(pm, pm, W - pm, H - pm);
+    og.addColorStop(0, `rgba(212,175,55,${a})`); og.addColorStop(0.5, `rgba(108,92,231,${a * 0.7})`); og.addColorStop(1, `rgba(212,175,55,${a})`);
+    ctx.strokeStyle = og; ctx.lineWidth = 1; ctx.stroke();
+  }
+  /* Main border */
+  rr(ctx, pm, pm, W - pm * 2, H - pm * 2, 22);
+  const bG = ctx.createLinearGradient(pm, pm, W - pm, H - pm);
+  bG.addColorStop(0,    "rgba(212,175,55,0.95)");
+  bG.addColorStop(0.25, "rgba(167,139,250,0.65)");
+  bG.addColorStop(0.5,  "rgba(108,92,231,0.70)");
+  bG.addColorStop(0.75, "rgba(167,139,250,0.65)");
+  bG.addColorStop(1,    "rgba(212,175,55,0.95)");
+  ctx.strokeStyle = bG; ctx.lineWidth = 1.8; ctx.stroke();
+  /* Inner thin border */
+  const ib = pm + 5;
+  rr(ctx, ib, ib, W - ib * 2, H - ib * 2, 17);
+  const ibG = ctx.createLinearGradient(ib, ib, W - ib, H - ib);
+  ibG.addColorStop(0, "rgba(212,175,55,0.30)"); ibG.addColorStop(0.5, "rgba(108,92,231,0.20)"); ibG.addColorStop(1, "rgba(212,175,55,0.30)");
+  ctx.strokeStyle = ibG; ctx.lineWidth = 0.6; ctx.stroke();
+
+  /* Corner ornaments */
+  ctx.font = "11px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(212,175,55,0.75)";
+  [[pm + 11, pm + 11], [W - pm - 11, pm + 11], [pm + 11, H - pm - 11], [W - pm - 11, H - pm - 11]].forEach(([cx, cy]) => {
+    ctx.fillText("\u2736", cx, cy);
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+     5. HẠT LẤP LÁNH SPARKLE — chấm + chữ thập nhỏ
+  ═══════════════════════════════════════════════════════════ */
+  const rand = (() => { let s = 57; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })();
+  const sc = ["rgba(255,255,255,A)", "rgba(212,175,55,A)", "rgba(196,181,253,A)", "rgba(167,139,250,A)"];
+  for (let i = 0; i < 65; i++) {
+    const sx = pm + 6 + rand() * (W - pm * 2 - 12);
+    const sy = pm + 6 + rand() * (H - pm * 2 - 12);
+    const sz = 0.4 + rand() * 2.0;
+    const al = (0.18 + rand() * 0.65).toFixed(2);
+    ctx.fillStyle = sc[Math.floor(rand() * 4)].replace("A", al);
+    if (rand() > 0.48) {
+      ctx.beginPath(); ctx.arc(sx, sy, sz * 0.65, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const arm = sz * 1.2;
+      ctx.fillRect(sx - arm * 0.10, sy - arm, arm * 0.20, arm * 2);
+      ctx.fillRect(sx - arm, sy - arm * 0.10, arm * 2, arm * 0.20);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     6. KISMET HEADER — vàng lấp lánh phía trên
+  ═══════════════════════════════════════════════════════════ */
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "center";
+  ctx.font = "bold 11px Arial";
+  const hG = ctx.createLinearGradient(W / 2 - 65, 0, W / 2 + 65, 0);
+  hG.addColorStop(0, "#b8900a"); hG.addColorStop(0.35, "#f0d060"); hG.addColorStop(0.5, "#fff8dc"); hG.addColorStop(0.65, "#f0d060"); hG.addColorStop(1, "#b8900a");
+  ctx.fillStyle = hG; ctx.globalAlpha = 0.95;
+  ctx.fillText("\u2736   K I S M E T   \u2736", W / 2, 35);
+  ctx.globalAlpha = 1;
+  {
+    const ll = ctx.createLinearGradient(40, 43, W - 40, 43);
+    ll.addColorStop(0, "transparent"); ll.addColorStop(0.3, "rgba(212,175,55,0.6)"); ll.addColorStop(0.7, "rgba(167,139,250,0.5)"); ll.addColorStop(1, "transparent");
+    ctx.strokeStyle = ll; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(40, 43); ctx.lineTo(W - 40, 43); ctx.stroke();
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     7. AVATAR — glow rings + sharp circle + gradient ring
+  ═══════════════════════════════════════════════════════════ */
+  /* Glow rings: ngoài → trong */
+  [
+    { r: AR + 32, a: 0.06, rgb: "108,92,231" },
+    { r: AR + 19, a: 0.14, rgb: "108,92,231" },
+    { r: AR +  8, a: 0.28, rgb: "147,51,234" },
+    { r: AR +  2, a: 0.45, rgb: "212,175,55" },
+  ].forEach(({ r, a, rgb }) => {
+    const g = ctx.createRadialGradient(AX, AY, Math.max(0, r - 16), AX, AY, r + 16);
+    g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, "transparent");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(AX, AY, r + 18, 0, Math.PI * 2); ctx.fill();
   });
 
   /* Avatar circle */
   ctx.save();
-  ctx.beginPath(); ctx.arc(LCX, avatarCY, avatarR, 0, Math.PI * 2); ctx.clip();
+  ctx.beginPath(); ctx.arc(AX, AY, AR, 0, Math.PI * 2); ctx.clip();
   if (avatarSrc) {
     const img = await loadImg(avatarSrc);
     if (img) {
-      ctx.drawImage(img, LCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
+      ctx.drawImage(img, AX - AR, AY - AR, AR * 2, AR * 2);
     } else {
-      const fg = ctx.createLinearGradient(LCX - avatarR, avatarCY - avatarR, LCX + avatarR, avatarCY + avatarR);
+      const fg = ctx.createLinearGradient(AX - AR, AY - AR, AX + AR, AY + AR);
       fg.addColorStop(0, "#1a0a3e"); fg.addColorStop(1, "#6c5ce7");
-      ctx.fillStyle = fg; ctx.fillRect(LCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
+      ctx.fillStyle = fg; ctx.fillRect(AX - AR, AY - AR, AR * 2, AR * 2);
     }
   } else {
-    const fg = ctx.createLinearGradient(LCX - avatarR, avatarCY - avatarR, LCX + avatarR, avatarCY + avatarR);
+    const fg = ctx.createLinearGradient(AX - AR, AY - AR, AX + AR, AY + AR);
     fg.addColorStop(0, "#1a0a3e"); fg.addColorStop(1, "#6c5ce7");
-    ctx.fillStyle = fg; ctx.fillRect(LCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
+    ctx.fillStyle = fg; ctx.fillRect(AX - AR, AY - AR, AR * 2, AR * 2);
     ctx.restore();
-    ctx.font = `${avatarR * 0.9}px serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(char.avatar, LCX, avatarCY);
+    ctx.font = `${AR * 0.95}px serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(char.avatar, AX, AY);
     ctx.save();
   }
   ctx.restore();
 
-  /* Avatar ring */
-  ctx.beginPath(); ctx.arc(LCX, avatarCY, avatarR + 2, 0, Math.PI * 2);
-  const ringG = ctx.createLinearGradient(LCX - avatarR, avatarCY - avatarR, LCX + avatarR, avatarCY + avatarR);
-  ringG.addColorStop(0, "#d4af37"); ringG.addColorStop(0.4, "#a78bfa"); ringG.addColorStop(1, "#d4af37");
-  ctx.strokeStyle = ringG; ctx.lineWidth = 2; ctx.stroke();
+  /* Avatar border ring */
+  ctx.beginPath(); ctx.arc(AX, AY, AR + 2.5, 0, Math.PI * 2);
+  const rG = ctx.createLinearGradient(AX - AR, AY - AR, AX + AR, AY + AR);
+  rG.addColorStop(0, "#d4af37"); rG.addColorStop(0.3, "#a78bfa"); rG.addColorStop(0.7, "#c084fc"); rG.addColorStop(1, "#d4af37");
+  ctx.strokeStyle = rG; ctx.lineWidth = 2.5; ctx.stroke();
+
+  /* ═══════════════════════════════════════════════════════════
+     8. TEXT BLOCK — name, creator, slogan, tags
+  ═══════════════════════════════════════════════════════════ */
+  const TY = AY + AR + 22;
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "center";
 
   /* Name */
-  const nameY = avatarCY + avatarR + 20;
-  ctx.textBaseline = "alphabetic"; ctx.textAlign = "center";
-  ctx.font = "bold 17px Arial";
-  const nameGr = ctx.createLinearGradient(LCX - 70, 0, LCX + 70, 0);
-  nameGr.addColorStop(0, "#fff"); nameGr.addColorStop(0.5, "#e8ddff"); nameGr.addColorStop(1, "#d4af37");
-  ctx.fillStyle = nameGr;
-  /* truncate name to fit left panel */
-  let dispName = char.name;
-  while (ctx.measureText(dispName).width > 220 && dispName.length > 4) dispName = dispName.slice(0, -1);
-  if (dispName !== char.name) dispName += "…";
-  ctx.fillText(dispName, LCX, nameY);
+  ctx.font = "bold 20px Arial";
+  const nG = ctx.createLinearGradient(W / 2 - 90, 0, W / 2 + 90, 0);
+  nG.addColorStop(0, "#fff"); nG.addColorStop(0.45, "#e8ddff"); nG.addColorStop(1, "#d4af37");
+  ctx.fillStyle = nG;
+  ctx.fillText(char.name.slice(0, 26) + (char.name.length > 26 ? "\u2026" : ""), W / 2, TY);
 
   /* Creator */
   ctx.font = "9.5px Arial"; ctx.fillStyle = "rgba(167,139,250,0.45)";
-  ctx.fillText(`b\u1edfi ${creatorName}`, LCX, nameY + 16);
+  ctx.fillText(`b\u1edfi ${creatorName}`, W / 2, TY + 17);
 
   /* Slogan */
-  ctx.font = "italic 10px Arial"; ctx.fillStyle = "rgba(196,181,253,0.82)";
-  const sf = `\u201C${char.slogan}\u201D`;
-  const sl = ctx.measureText(sf).width > 230 ? sf.slice(0, 34) + "\u2026\u201D" : sf;
-  ctx.fillText(sl, LCX, nameY + 32);
+  ctx.font = "italic 11px Arial"; ctx.fillStyle = "rgba(196,181,253,0.88)";
+  const sfull = `\u201C${char.slogan}\u201D`;
+  const sshort = ctx.measureText(sfull).width > W - 64 ? sfull.slice(0, 40) + "\u2026\u201D" : sfull;
+  ctx.fillText(sshort, W / 2, TY + 35);
 
   /* Tags */
-  const tags = (char.tags || []).slice(0, 3);
+  const tags = (char.tags || []).slice(0, 4);
+  const tagY = TY + 52, tagH = 18;
   if (tags.length > 0) {
-    const tagH = 17, tagY2 = nameY + 50;
     ctx.font = "bold 9px Arial";
-    const ms = tags.map(t => ({ t, w: Math.ceil(ctx.measureText(t).width) + 14 }));
+    const ms = tags.map(t => ({ t, w: Math.ceil(ctx.measureText(t).width) + 15 }));
     const tw = ms.reduce((s, m) => s + m.w + 5, -5);
-    let tx = LCX - tw / 2;
+    let tx = (W - Math.min(tw, W - 50)) / 2;
     ms.forEach(({ t, w }) => {
+      if (tx + w > W - pm - 6) return; /* không tràn khung */
       const hot = t.includes("18+") || t === "B\u1ea1o l\u1ef1c";
-      ctx.fillStyle = hot ? "rgba(239,68,68,0.18)" : "rgba(108,92,231,0.20)";
-      rr(ctx, tx, tagY2, w, tagH, 8); ctx.fill();
-      ctx.strokeStyle = hot ? "rgba(239,68,68,0.5)" : "rgba(108,92,231,0.55)";
-      ctx.lineWidth = 0.7; rr(ctx, tx, tagY2, w, tagH, 8); ctx.stroke();
+      ctx.fillStyle = hot ? "rgba(239,68,68,0.20)" : "rgba(108,92,231,0.22)";
+      rr(ctx, tx, tagY, w, tagH, 9); ctx.fill();
+      ctx.strokeStyle = hot ? "rgba(239,68,68,0.55)" : "rgba(108,92,231,0.6)";
+      ctx.lineWidth = 0.75; rr(ctx, tx, tagY, w, tagH, 9); ctx.stroke();
       ctx.fillStyle = hot ? "#f87171" : "#c4b5fd";
-      ctx.textAlign = "center"; ctx.fillText(t, tx + w / 2, tagY2 + 12);
+      ctx.textAlign = "center"; ctx.fillText(t, tx + w / 2, tagY + 12.5);
       tx += w + 5;
     });
   }
 
-  /* ════════ DIVIDER (x ≈ 299..303) ════════ */
+  /* ═══════════════════════════════════════════════════════════
+     9. DIVIDER + PERSONALITY
+  ═══════════════════════════════════════════════════════════ */
+  const divY2 = tagY + (tags.length ? 28 : 8);
   {
-    const dg = ctx.createLinearGradient(300, 30, 300, H - 30);
-    dg.addColorStop(0, "transparent");
-    dg.addColorStop(0.25, "rgba(212,175,55,0.45)");
-    dg.addColorStop(0.75, "rgba(108,92,231,0.35)");
-    dg.addColorStop(1, "transparent");
-    ctx.strokeStyle = dg; ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(300, 24); ctx.lineTo(300, H - 24); ctx.stroke();
+    const dg = ctx.createLinearGradient(35, divY2, W - 35, divY2);
+    dg.addColorStop(0, "transparent"); dg.addColorStop(0.35, "rgba(212,175,55,0.5)"); dg.addColorStop(0.65, "rgba(167,139,250,0.4)"); dg.addColorStop(1, "transparent");
+    ctx.strokeStyle = dg; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(35, divY2); ctx.lineTo(W - 35, divY2); ctx.stroke();
+    /* Glow dot tâm */
+    const dpt = ctx.createRadialGradient(W / 2, divY2, 0, W / 2, divY2, 28);
+    dpt.addColorStop(0, "rgba(212,175,55,0.30)"); dpt.addColorStop(1, "transparent");
+    ctx.fillStyle = dpt; ctx.fillRect(W / 2 - 30, divY2 - 8, 60, 16);
   }
 
-  /* ════════ RIGHT PANEL (x: 310..628) ════════ */
-  const RX = 310; /* left edge of right panel content */
-  const RCX = (310 + 628) / 2; /* 469 */
-  const RMAX = 618 - RX; /* max text width ≈ 308 */
-
-  /* KISMET branding — top right */
-  ctx.font = "bold 10px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-  const hgr = ctx.createLinearGradient(RCX - 55, 0, RCX + 55, 0);
-  hgr.addColorStop(0, "#d4af37"); hgr.addColorStop(0.5, "#f0d060"); hgr.addColorStop(1, "#d4af37");
-  ctx.fillStyle = hgr; ctx.globalAlpha = 0.9;
-  ctx.fillText("\u2736  K I S M E T  \u2736", RCX, 30);
-  ctx.globalAlpha = 1;
-  {
-    const ll = ctx.createLinearGradient(RX, 38, RX + RMAX, 38);
-    ll.addColorStop(0, "transparent"); ll.addColorStop(0.4, "rgba(212,175,55,0.5)"); ll.addColorStop(0.6, "rgba(167,139,250,0.4)"); ll.addColorStop(1, "transparent");
-    ctx.strokeStyle = ll; ctx.lineWidth = 0.7;
-    ctx.beginPath(); ctx.moveTo(RX + 4, 38); ctx.lineTo(RX + RMAX - 4, 38); ctx.stroke();
+  /* Personality — 2 lines max để nhường chỗ QR */
+  ctx.font = "10px Arial"; ctx.fillStyle = "rgba(255,255,255,0.44)"; ctx.textAlign = "left";
+  const snip = char.personality.replace(/\n/g, " ").slice(0, 160);
+  const snipWords = snip.split(" ");
+  let sline = "", sly = divY2 + 14;
+  let sLineCount = 0;
+  for (const sw of snipWords) {
+    const t = sline + (sline ? " " : "") + sw;
+    if (ctx.measureText(t).width > W - 66) {
+      ctx.fillText(sline, 33, sly); sline = sw; sly += 13; sLineCount++;
+      if (sLineCount >= 2) { ctx.fillText(sline + "\u2026", 33, sly); sline = ""; break; }
+    } else sline = t;
   }
+  if (sline && sLineCount < 2) ctx.fillText(sline, 33, sly);
 
-  /* Personality snippet — 4 lines max */
-  ctx.font = "10px Arial"; ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.textAlign = "left";
-  const snip = char.personality.replace(/\n/g, " ").slice(0, 240);
-  const wds = snip.split(" ");
-  let pline = "", ply = 56;
-  for (const w of wds) {
-    const test = pline + (pline ? " " : "") + w;
-    if (ctx.measureText(test).width > RMAX) {
-      ctx.fillText(pline, RX + 4, ply); pline = w; ply += 13;
-      if (ply > 108) { ctx.fillText(pline + "\u2026", RX + 4, ply); pline = ""; break; }
-    } else pline = test;
-  }
-  if (pline && ply <= 108) ctx.fillText(pline, RX + 4, ply);
-
-  /* ── QR Code — large, clear, scannable ── */
-  /* QR is 134×134 display, generated at 536px (4×) for sharpness */
-  const qrSize = 134, qrPad = 10;
-  const qrBoxW = qrSize + qrPad * 2, qrBoxH = qrSize + qrPad * 2; /* 154×154 */
-  const qrBX = RCX - qrBoxW / 2, qrBY = H - qrBoxH - 18; /* bottom-anchored */
+  /* ═══════════════════════════════════════════════════════════
+     10. QR CODE — nền trắng · bo góc · hào quang · K badge
+  ═══════════════════════════════════════════════════════════ */
+  const QS = 98, QP = 10;                /* QR display size, padding */
+  const QBW = QS + QP * 2, QBH = QS + QP * 2;  /* box 118×118 */
+  const QBX = W / 2 - QBW / 2;
+  const QBY = H - QBH - 22;             /* bottom-anchored, leave 22px for label */
 
   try {
-    /* Nền trắng mờ đằng sau QR để đảm bảo độ tương phản khi quét */
     const qrDataUrl = await QRCode.toDataURL(code, {
-      width: qrSize * 4,
-      margin: 2, /* quiet zone đủ rộng cho scanner */
-      color: { dark: "#000000ff", light: "#ffffffff" }, /* đen trên trắng — máy quét đọc chắc chắn nhất */
+      width: QS * 5,   /* 5× oversampling = 490px — rất sắc nét */
+      margin: 2,        /* quiet zone rộng */
+      color: { dark: "#000000ff", light: "#ffffffff" },
       errorCorrectionLevel: "H",
     });
     const qrImg = await loadImg(qrDataUrl);
     if (qrImg) {
-      /* Hào quang vàng nhạt phía sau */
-      const qglow = ctx.createRadialGradient(RCX, qrBY + qrBoxH / 2, 0, RCX, qrBY + qrBoxH / 2, 90);
-      qglow.addColorStop(0, "rgba(212,175,55,0.18)"); qglow.addColorStop(0.6, "rgba(108,92,231,0.10)"); qglow.addColorStop(1, "transparent");
-      ctx.fillStyle = qglow; ctx.fillRect(qrBX - 20, qrBY - 20, qrBoxW + 40, qrBoxH + 40);
+      /* Hào quang vàng + tím phía sau box */
+      const qg = ctx.createRadialGradient(W / 2, QBY + QBH / 2, 0, W / 2, QBY + QBH / 2, 80);
+      qg.addColorStop(0, "rgba(212,175,55,0.22)"); qg.addColorStop(0.5, "rgba(108,92,231,0.14)"); qg.addColorStop(1, "transparent");
+      ctx.fillStyle = qg; ctx.fillRect(QBX - 18, QBY - 18, QBW + 36, QBH + 36);
 
-      /* Nền trắng của box QR — tương phản cao để scanner đọc được */
-      rr(ctx, qrBX, qrBY, qrBoxW, qrBoxH, 14);
+      /* Box trắng — tương phản tối đa để scanner đọc được */
+      rr(ctx, QBX, QBY, QBW, QBH, 14);
       ctx.fillStyle = "#ffffff"; ctx.fill();
 
-      /* Viền gradient đẹp bên ngoài */
-      const bb = ctx.createLinearGradient(qrBX, qrBY, qrBX + qrBoxW, qrBY + qrBoxH);
-      bb.addColorStop(0, "rgba(212,175,55,0.7)"); bb.addColorStop(0.5, "rgba(108,92,231,0.6)"); bb.addColorStop(1, "rgba(212,175,55,0.65)");
-      rr(ctx, qrBX, qrBY, qrBoxW, qrBoxH, 14); ctx.strokeStyle = bb; ctx.lineWidth = 1.5; ctx.stroke();
+      /* Viền ngoài gradient vàng → tím */
+      const qb = ctx.createLinearGradient(QBX, QBY, QBX + QBW, QBY + QBH);
+      qb.addColorStop(0, "rgba(212,175,55,0.85)"); qb.addColorStop(0.5, "rgba(108,92,231,0.75)"); qb.addColorStop(1, "rgba(212,175,55,0.80)");
+      rr(ctx, QBX, QBY, QBW, QBH, 14); ctx.strokeStyle = qb; ctx.lineWidth = 1.8; ctx.stroke();
 
-      /* Vẽ QR — không clip, không filter, không blur → scanner đọc 100% */
-      ctx.drawImage(qrImg, qrBX + qrPad, qrBY + qrPad, qrSize, qrSize);
+      /* Vẽ QR KHÔNG clip, KHÔNG filter → scanner đọc 100% chắc chắn */
+      ctx.drawImage(qrImg, QBX + QP, QBY + QP, QS, QS);
 
-      /* K badge nhỏ ở góc trên-phải của box (không che QR) */
-      const kCX = qrBX + qrBoxW - 14, kCY = qrBY + 14, kR = 10;
-      const kFill = ctx.createRadialGradient(kCX - 1, kCY - 1, 0, kCX, kCY, kR);
-      kFill.addColorStop(0, "#f0d060"); kFill.addColorStop(1, "#b8900a");
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(kCX, kCY, kR + 1, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = kFill; ctx.beginPath(); ctx.arc(kCX, kCY, kR, 0, Math.PI * 2); ctx.fill();
+      /* K badge — góc trên phải bên ngoài box (không che data QR) */
+      const KC = QBX + QBW + 1, KR_Y = QBY - 1, KR = 11;
+      const kfill = ctx.createRadialGradient(KC - 1, KR_Y - 1, 0, KC, KR_Y, KR);
+      kfill.addColorStop(0, "#fff8a0"); kfill.addColorStop(1, "#c8840a");
+      /* Viền trắng tách biệt nền */
+      ctx.fillStyle = "#0c0520"; ctx.beginPath(); ctx.arc(KC, KR_Y, KR + 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = kfill; ctx.beginPath(); ctx.arc(KC, KR_Y, KR, 0, Math.PI * 2); ctx.fill();
       ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillStyle = "#1a0830"; ctx.fillText("K", kCX, kCY);
+      ctx.fillStyle = "#1a0830"; ctx.fillText("K", KC, KR_Y);
       ctx.textBaseline = "alphabetic";
     }
-  } catch { /* skip QR on error */ }
+  } catch { /* skip on error */ }
 
   /* ── Label dưới QR ── */
   ctx.font = "8.5px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "rgba(212,175,55,0.38)";
-  ctx.fillText("Qu\u00e9t QR \u0111\u1ec3 tri\u1ec7u h\u1ed3i \u2022 KISMET", RCX, H - 8);
+  ctx.fillText("Qu\u00e9t QR \u0111\u1ec3 tri\u1ec7u h\u1ed3i \u2022 KISMET", W / 2, H - 10);
 
   return canvas.toDataURL("image/png");
 }

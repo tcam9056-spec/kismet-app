@@ -121,6 +121,56 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════
+   QR SCANNER — đa chiến lược, xử lý ảnh lớn + crop thông minh
+══════════════════════════════════════════════════════ */
+function drawCrop(img: HTMLImageElement, sx: number, sy: number, sw: number, sh: number, maxPx = 1200) {
+  const scale = Math.min(1, maxPx / Math.max(sw, sh));
+  const dw = Math.round(sw * scale), dh = Math.round(sh * scale);
+  const c = document.createElement("canvas"); c.width = dw; c.height = dh;
+  c.getContext("2d")!.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+  return c;
+}
+
+function tryQR(c: HTMLCanvasElement) {
+  const cx = c.getContext("2d")!;
+  const id = cx.getImageData(0, 0, c.width, c.height);
+  return jsQR(id.data, c.width, c.height, { inversionAttempts: "attemptBoth" });
+}
+
+function scanQRStrategies(img: HTMLImageElement): string | null {
+  const W = img.naturalWidth  || img.width;
+  const H = img.naturalHeight || img.height;
+
+  /* Danh sách vùng crop thử theo thứ tự ưu tiên */
+  const crops: Array<[number, number, number, number, number]> = [
+    /* [sx%, sy%, sw%, sh%, maxPx] */
+    [0,    0,    1,    1,    1200], /* Toàn ảnh — scale xuống nếu quá to */
+    [0,    0,    1,    1,    600],  /* Toàn ảnh thu nhỏ hơn */
+    [0,    0,    1,    1,    300],  /* Toàn ảnh rất nhỏ — scanner đôi khi thích */
+    /* Thẻ 16:9 ngang: QR nằm bên phải */
+    [0.42, 0,    0.58, 1,    800],
+    [0.5,  0,    0.5,  1,    800],
+    /* Thẻ 1:1 / portrait: QR nằm cuối */
+    [0.2,  0.55, 0.6,  0.45, 800],
+    [0.25, 0.6,  0.5,  0.4,  600],
+    /* Phần tư phải-dưới */
+    [0.5,  0.5,  0.5,  0.5,  600],
+    /* Giữa ảnh */
+    [0.25, 0.25, 0.5,  0.5,  600],
+    /* Toàn ảnh x2 lên nếu ảnh quá nhỏ */
+    [0,    0,    1,    1,    2400],
+  ];
+
+  for (const [rx, ry, rw, rh, mp] of crops) {
+    const sx = Math.round(rx * W), sy = Math.round(ry * H);
+    const sw = Math.round(rw * W), sh = Math.round(rh * H);
+    const result = tryQR(drawCrop(img, sx, sy, sw, sh, mp));
+    if (result) return result.data;
+  }
+  return null;
+}
+
 /* ══════════════════════════════════════════════
    IMPORT MODAL — paste code to summon character
 ══════════════════════════════════════════════ */
@@ -170,23 +220,23 @@ function ImportModal({ onClose, onImported, onChat }: {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const c = document.createElement("canvas");
-      c.width = img.width; c.height = img.height;
-      const cx = c.getContext("2d")!;
-      cx.drawImage(img, 0, 0);
-      const imageData = cx.getImageData(0, 0, c.width, c.height);
-      const result = jsQR(imageData.data, c.width, c.height);
       URL.revokeObjectURL(objectUrl);
-      if (result) {
-        /* Tự động triệu hồi ngay khi nhận diện QR thành công */
-        setCode(result.data);
-        doImport(result.data);
+      /* Thử 10 chiến lược crop + scale khác nhau */
+      const found = scanQRStrategies(img);
+      if (found) {
+        /* Tự động triệu hồi ngay — không cần bấm nút */
+        setCode(found);
+        doImport(found);
       } else {
         setStatus("idle");
         setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại.");
       }
     };
-    img.onerror = () => { setStatus("idle"); setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại."); };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      setStatus("idle");
+      setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại.");
+    };
     img.src = objectUrl;
     e.target.value = "";
   };
