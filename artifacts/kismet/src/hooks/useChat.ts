@@ -6,6 +6,7 @@ import {
   orderBy,
   setDoc,
   addDoc,
+  deleteDoc,
   doc,
   serverTimestamp,
   Timestamp,
@@ -40,7 +41,6 @@ function saveLocalMessages(email: string, characterId: string, msgs: Message[]) 
   } catch {}
 }
 
-/* ── User context injected into every AI prompt ── */
 function buildUserContext(uid: string): string {
   try {
     const raw = localStorage.getItem(`kismet_profile_${uid}`);
@@ -62,7 +62,6 @@ function buildUserContext(uid: string): string {
   }
 }
 
-/* ── Read maxOutputTokens from localStorage ── */
 function getMaxTokens(): number {
   try {
     const v = parseInt(localStorage.getItem("kismet_maxTokens") || "2048", 10);
@@ -113,7 +112,6 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
     getDocs(q)
       .then((snap) => {
         if (snap.empty) {
-          /* Inject firstMessage if character has one */
           if (character.firstMessage?.trim()) {
             const initMsg: Message = {
               id: `first_${character.id}`,
@@ -148,66 +146,20 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
       .catch(() => { setLoading(false); });
   }, [user?.uid, character?.id]);
 
-  const send = async (text: string, quickContext?: string) => {
-    if (!user || !character || !text.trim() || sending) return;
-    if (keys.length === 0) {
-      setError("Chưa có API Key. Vào Cài đặt → thêm Gemini API Key để chat.");
-      return;
-    }
+  /* ── Build system prompt (shared between send & regenerate) ── */
+  const buildSystemPrompt = (userName: string, quickContext?: string) => {
+    if (!character) return "";
 
-    const email = user.email || user.uid;
-    const chatId = chatIdRef.current || `${user.uid}_${character.id}`;
-    chatIdRef.current = chatId;
-
-    const tempId = genId("user");
-    const userMsg: Message = { id: tempId, role: "user", content: text, timestamp: Date.now() };
-
-    const updatedMsgs = [...msgsRef.current, userMsg];
-    setMessages(updatedMsgs);
-    saveLocalMessages(email, character.id, updatedMsgs);
-
-    setSending(true);
-    setError(null);
-    setStatusText("Đang kết nối tâm giao...");
-
-    /* Save user msg to Firestore in background */
-    (async () => {
-      try {
-        const mRef = collection(db, "chats", chatId, "messages");
-        const docRef = await addDoc(mRef, { role: "user", content: text, timestamp: serverTimestamp() });
-        setMessages((prev) => {
-          const next = prev.map((m) => (m.id === tempId ? { ...m, id: docRef.id } : m));
-          saveLocalMessages(email, character.id, next);
-          return next;
-        });
-      } catch {}
-    })();
-
-    /* ── Memory section — quyền năng tối cao ── */
     const memSection = memories.length > 0
       ? `[KÝ ỨC BẤT BIẾN — QUYỀN NĂNG TỐI CAO]\n` +
         memories.map((m, i) => `${i + 1}. ${m}`).join("\n") +
         `\n\nNhững điều trên là SỰ THẬT TUYỆT ĐỐI không thể thay đổi. ${character.name} PHẢI nhất quán 100% — không được mâu thuẫn, phủ nhận hay quên.\n\n`
       : "";
 
-    /* Build full system prompt = user context + character personality */
-    const userContext = buildUserContext(user.uid);
+    const userContext = buildUserContext(user!.uid);
     const charPrompt = character.curse
       ? `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`
       : `${character.personality}\n\nSlogan: "${character.slogan}"`;
-
-    /* Get user name for {{user}} substitution */
-    let userName = "người dùng";
-    try {
-      const pRaw = localStorage.getItem(`kismet_profile_${user.uid}`);
-      if (pRaw) {
-        const p = JSON.parse(pRaw);
-        if (p.name?.trim()) userName = p.name.trim();
-        else if (user.email) userName = user.email.split("@")[0];
-      } else if (user.email) {
-        userName = user.email.split("@")[0];
-      }
-    } catch { userName = "người dùng"; }
 
     const nsfwInstruction = safeMode
       ? `[NỘI DUNG] Ở chế độ an toàn. Tránh nội dung người lớn, bạo lực cực đoan.`
@@ -252,16 +204,40 @@ ${nsfwInstruction}
 ${quickCtxLine}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
-    const fullSystemPrompt = userContext
+    return userContext
       ? `${memSection}${novelStyleInstruction}\n\n${userContext}\n\n---\n\n${charPrompt}`
       : `${memSection}${novelStyleInstruction}\n\n${charPrompt}`;
+  };
 
-    const historyForAI = msgsRef.current.slice(-20);
+  /* ── Internal: call AI with given history snapshot, append AI msg ── */
+  const callAI = async (
+    historySnapshot: Message[],
+    userText: string,
+    chatId: string,
+    email: string,
+    quickContext?: string,
+  ) => {
+    if (!character || !user) return;
+
+    let userName = "người dùng";
+    try {
+      const pRaw = localStorage.getItem(`kismet_profile_${user.uid}`);
+      if (pRaw) {
+        const p = JSON.parse(pRaw);
+        if (p.name?.trim()) userName = p.name.trim();
+        else if (user.email) userName = user.email.split("@")[0];
+      } else if (user.email) {
+        userName = user.email.split("@")[0];
+      }
+    } catch { userName = "người dùng"; }
+
+    const fullSystemPrompt = buildSystemPrompt(userName, quickContext);
+    const historyForAI = historySnapshot.slice(-20);
     const maxTokens = getMaxTokens();
+    const totalKeys = keys.length;
 
     let lastError: unknown = null;
     let response: string | null = null;
-    const totalKeys = keys.length;
 
     for (let attempt = 0; attempt < totalKeys; attempt++) {
       const keyIdx = (keyIndexRef.current + attempt) % totalKeys;
@@ -270,7 +246,7 @@ ${quickCtxLine}
         setStatusText(
           attempt === 0 ? "Linh hồn đang phản hồi..." : `Đang thử key ${attempt + 1}/${totalKeys}...`
         );
-        response = await sendMessage(apiKey, model, fullSystemPrompt, historyForAI, text, maxTokens);
+        response = await sendMessage(apiKey, model, fullSystemPrompt, historyForAI, userText, maxTokens);
         keyIndexRef.current = keyIdx;
         break;
       } catch (err: unknown) {
@@ -305,28 +281,124 @@ ${quickCtxLine}
       })();
     } else {
       setError(getErrorMessage(lastError));
-      setMessages((prev) => {
-        const next = prev.filter((m) => m.id !== tempId);
-        saveLocalMessages(email, character.id, next);
-        return next;
-      });
     }
+  };
+
+  const send = async (text: string, quickContext?: string) => {
+    if (!user || !character || !text.trim() || sending) return;
+    if (keys.length === 0) {
+      setError("Chưa có API Key. Vào Cài đặt → thêm Gemini API Key để chat.");
+      return;
+    }
+
+    const email = user.email || user.uid;
+    const chatId = chatIdRef.current || `${user.uid}_${character.id}`;
+    chatIdRef.current = chatId;
+
+    const tempId = genId("user");
+    const userMsg: Message = { id: tempId, role: "user", content: text, timestamp: Date.now() };
+
+    const updatedMsgs = [...msgsRef.current, userMsg];
+    setMessages(updatedMsgs);
+    saveLocalMessages(email, character.id, updatedMsgs);
+
+    setSending(true);
+    setError(null);
+    setStatusText("Đang kết nối tâm giao...");
+
+    (async () => {
+      try {
+        const mRef = collection(db, "chats", chatId, "messages");
+        const docRef = await addDoc(mRef, { role: "user", content: text, timestamp: serverTimestamp() });
+        setMessages((prev) => {
+          const next = prev.map((m) => (m.id === tempId ? { ...m, id: docRef.id } : m));
+          saveLocalMessages(email, character.id, next);
+          return next;
+        });
+      } catch {}
+    })();
+
+    await callAI(updatedMsgs, text, chatId, email, quickContext);
 
     setSending(false);
     setStatusText("");
   };
 
+  /* ── Delete a single message by id ── */
+  const deleteMessage = async (msgId: string) => {
+    if (!user || !character) return;
+    const email = user.email || user.uid;
+    const chatId = chatIdRef.current || `${user.uid}_${character.id}`;
+
+    setMessages((prev) => {
+      const next = prev.filter(m => m.id !== msgId);
+      saveLocalMessages(email, character.id, next);
+      return next;
+    });
+
+    try {
+      if (!msgId.startsWith("first_") && !msgId.startsWith("user_") && !msgId.startsWith("ai_")) {
+        await deleteDoc(doc(db, "chats", chatId, "messages", msgId));
+      }
+    } catch {}
+  };
+
+  /* ── Regenerate an AI message ── */
+  const regenerate = async (msgId: string) => {
+    if (!user || !character || sending) return;
+    if (keys.length === 0) {
+      setError("Chưa có API Key. Vào Cài đặt → thêm Gemini API Key để chat.");
+      return;
+    }
+
+    const email = user.email || user.uid;
+    const chatId = chatIdRef.current || `${user.uid}_${character.id}`;
+    const msgs = msgsRef.current;
+    const idx = msgs.findIndex(m => m.id === msgId);
+    if (idx < 0) return;
+
+    let userMsgIdx = -1;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (msgs[i].role === "user") { userMsgIdx = i; break; }
+    }
+    if (userMsgIdx < 0) return;
+
+    const userMsgContent = msgs[userMsgIdx].content;
+    const historyBeforeAI = msgs.slice(0, idx);
+
+    const withoutAI = msgs.filter((_, i) => i !== idx);
+    setMessages(withoutAI);
+    saveLocalMessages(email, character.id, withoutAI);
+
+    setSending(true);
+    setError(null);
+    setStatusText("Đang tạo phản hồi mới...");
+
+    await callAI(historyBeforeAI, userMsgContent, chatId, email);
+
+    setSending(false);
+    setStatusText("");
+  };
+
+  /* ── Clear all messages but keep the firstMessage ── */
   const clearHistory = async () => {
     if (!user || !character) return;
     const email = user.email || user.uid;
     const chatId = chatIdRef.current || `${user.uid}_${character.id}`;
-    setMessages([]);
-    saveLocalMessages(email, character.id, []);
+
+    const firstId = `first_${character.id}`;
+    const currentMsgs = msgsRef.current;
+    const firstMsg = currentMsgs.find(m => m.id === firstId);
+
+    const kept = firstMsg ? [firstMsg] : [];
+    setMessages(kept);
+    saveLocalMessages(email, character.id, kept);
+
     try {
       const chatDocRef = doc(db, "chats", chatId);
       await setDoc(chatDocRef, { cleared: true, clearedAt: serverTimestamp() }, { merge: true });
     } catch {}
   };
 
-  return { messages, loading, sending, statusText, error, send, clearHistory };
+  return { messages, loading, sending, statusText, error, send, deleteMessage, regenerate, clearHistory };
 }

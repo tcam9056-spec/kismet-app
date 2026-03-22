@@ -99,6 +99,44 @@ function readFileAsBase64(file: File): Promise<string> {
   return new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result as string); r.readAsDataURL(file); });
 }
 
+async function normalizeImageBase64(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.88));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); readFileAsBase64(file).then(resolve); };
+    img.src = url;
+  });
+}
+
+async function normalizeImageFile(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => {
+        resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file);
+      }, "image/jpeg", 0.88);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 /* ═══════════════════════════════════════════════════
    GEMINI JSON HELPER (phone & gift generation)
 ═══════════════════════════════════════════════════ */
@@ -746,7 +784,12 @@ interface Props { character: Character; onBack: () => void; }
 export default function ChatPage({ character, onBack }: Props) {
   const { user } = useAuth();
   const { keys, selectedModel, loading: keysLoading } = useKeys();
-  const [safeMode, setSafeMode] = useState(true);
+  const [safeMode, setSafeMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("kismet_safeMode");
+      return saved !== null ? saved === "true" : true;
+    } catch { return true; }
+  });
 
   /* Quyền chủ sở hữu — createdBy stores uid, check both uid and email */
   const isOwner = !!user && (
@@ -763,13 +806,19 @@ export default function ChatPage({ character, onBack }: Props) {
     setMemories(loadMemories(user.uid, character.id));
   }, [user?.uid, character.id]);
 
-  const { messages, loading, sending, statusText, error, send, clearHistory } =
+  const { messages, loading, sending, statusText, error, send, deleteMessage, regenerate, clearHistory } =
     useChat(character, keys, selectedModel as GeminiModel, safeMode, memories);
+
+  /* Persist safeMode to localStorage whenever it changes */
+  useEffect(() => {
+    try { localStorage.setItem("kismet_safeMode", String(safeMode)); } catch {}
+  }, [safeMode]);
 
   const email = user?.email || user?.uid || "";
 
   /* ── state ── */
   const [input, setInput] = useState("");
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const [quickContext, setQuickContext] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showCharProfile, setShowCharProfile] = useState(false);
@@ -863,11 +912,15 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
   const handleCharAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     try {
+      const normalizedFile = await normalizeImageFile(file);
       const { updateCharacterAvatar } = await import("@/lib/firebase");
-      const url = await updateCharacterAvatar(character.id, file);
+      const url = await updateCharacterAvatar(character.id, normalizedFile);
+      /* Also cache normalized base64 in localStorage for offline/fallback */
+      const b64 = await normalizeImageBase64(file);
+      localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
       setCharAvatarUrl(url);
     } catch {
-      const b64 = await readFileAsBase64(file);
+      const b64 = await normalizeImageBase64(file);
       localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
       setCharAvatarUrl(b64);
     }
@@ -957,8 +1010,15 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
 
         {messages.map(msg => {
           const isUser = msg.role === "user";
+          const isHovered = hoveredMsgId === msg.id;
           return (
-            <div key={msg.id} style={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 8 }}>
+            <div
+              key={msg.id}
+              style={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 8 }}
+              onMouseEnter={() => setHoveredMsgId(msg.id)}
+              onMouseLeave={() => setHoveredMsgId(null)}
+              onTouchStart={() => setHoveredMsgId(msg.id)}
+            >
               {isUser
                 ? <button onClick={() => { setProfileDraft(profile); setUserAvatarDraft(userAvatarUrl); setShowProfile(true); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><UserAvatar src={userAvatarUrl} size={32} /></button>
                 : <button onClick={() => setShowCharProfile(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><CharAvatar src={charAvatarUrl} emoji={character.avatar} size={32} /></button>
@@ -967,7 +1027,29 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
                 <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(28,26,44,0.98)", fontSize: 14, lineHeight: 1.7, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 8px rgba(0,0,0,0.4)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.06)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {isUser ? msg.content : renderNovel(msg.content)}
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.18)", marginTop: 4, paddingInline: 4 }}>{fmt(msg.timestamp)}</div>
+                {/* Timestamp + action buttons row */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, paddingInline: 4, flexDirection: isUser ? "row-reverse" : "row" }}>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.18)" }}>{fmt(msg.timestamp)}</span>
+                  {/* Delete button — always visible but faint */}
+                  <button
+                    onClick={() => deleteMessage(msg.id)}
+                    title="Xóa tin nhắn"
+                    style={{ background: "none", border: "none", padding: "1px 3px", cursor: "pointer", display: "flex", alignItems: "center", opacity: isHovered ? 0.75 : 0.2, transition: "opacity 0.2s", color: "#f87171" }}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                  {/* Regenerate — only for char (assistant) messages */}
+                  {!isUser && (
+                    <button
+                      onClick={() => regenerate(msg.id)}
+                      title="Tạo lại phản hồi"
+                      disabled={sending}
+                      style={{ background: "none", border: "none", padding: "1px 3px", cursor: sending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", opacity: isHovered ? 0.75 : 0.2, transition: "opacity 0.2s", color: "#a78bfa" }}
+                    >
+                      <span style={{ fontSize: 12 }}>↻</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -1089,11 +1171,12 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 24, backdropFilter: "blur(6px)" }} onClick={() => setShowClearConfirm(false)}>
           <div style={{ background: "#1a1825", border: "1px solid rgba(108,92,231,0.3)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 320, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>🗑️</div>
-            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Xoá lịch sử chat?</p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 24 }}>Toàn bộ tin nhắn với {character.name} sẽ bị xoá vĩnh viễn.</p>
+            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Xóa cuộc trò chuyện?</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 6 }}>Toàn bộ tin nhắn bạn đã chat với {character.name} sẽ bị xóa.</p>
+            <p style={{ fontSize: 12, color: "rgba(167,139,250,0.55)", marginBottom: 24 }}>✦ Tin chào hỏi đầu tiên của {character.name} sẽ được giữ lại.</p>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowClearConfirm(false)} style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 14, cursor: "pointer" }}>Huỷ</button>
-              <button onClick={handleClearHistory} style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#dc2626,#b91c1c)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Xoá tất cả</button>
+              <button onClick={handleClearHistory} style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#dc2626,#b91c1c)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Xóa hết</button>
             </div>
           </div>
         </div>
