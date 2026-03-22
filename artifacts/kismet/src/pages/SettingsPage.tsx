@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useKeys } from "@/hooks/useKeys";
 import { GEMINI_MODELS } from "@/lib/types";
+import { listModels, MODEL_FALLBACKS } from "@/lib/gemini";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders } from "lucide-react";
+import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders, FlaskConical, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
+
+type ModelStatus = { status: "ok" | "fallback" | "error"; resolvedTo?: string };
+
 
 const MAX_TOKENS_KEY = "kismet_maxTokens";
 const LOGO_KEY = "kismet_logo";
@@ -59,6 +63,36 @@ export default function SettingsPage({ onBack }: Props) {
   /* Logo */
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
+
+  /* Model availability check */
+  const [modelStatuses, setModelStatuses] = useState<Record<string, ModelStatus>>({});
+  const [checkingModels, setCheckingModels] = useState(false);
+
+  const checkModels = async () => {
+    if (localKeys.length === 0) return;
+    setCheckingModels(true);
+    setModelStatuses({});
+    const apiKey = localKeys[0];
+    const available = await listModels(apiKey);
+    const statuses: Record<string, ModelStatus> = {};
+    for (const m of GEMINI_MODELS) {
+      if (available.includes(m.id)) {
+        statuses[m.id] = { status: "ok", resolvedTo: m.id };
+      } else {
+        const fallbacks = MODEL_FALLBACKS[m.id] || [];
+        const found = fallbacks.find(f => available.includes(f));
+        if (found) {
+          statuses[m.id] = { status: "fallback", resolvedTo: found };
+        } else if (available.length === 0) {
+          statuses[m.id] = { status: "error" };
+        } else {
+          statuses[m.id] = { status: "fallback", resolvedTo: available.find(a => a.includes("flash")) || available[0] };
+        }
+      }
+    }
+    setModelStatuses(statuses);
+    setCheckingModels(false);
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -291,32 +325,100 @@ export default function SettingsPage({ onBack }: Props) {
 
           {/* ── MODEL SELECTION ── */}
           <div>
-            {sectionLabel(<Bot size={14} style={{ color: "#a78bfa" }} />, "Model AI")}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {GEMINI_MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setLocalModel(m.id)}
-                  style={{
-                    padding: "12px 16px", borderRadius: 12, textAlign: "left", cursor: "pointer",
-                    border: `1px solid ${localModel === m.id ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`,
-                    background: localModel === m.id ? "rgba(108,92,231,0.15)" : "rgba(255,255,255,0.03)",
-                    color: "#fff", transition: "all 0.15s",
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: localModel === m.id ? "#c4b5fd" : "rgba(255,255,255,0.8)" }}>
-                      {m.label}
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", marginTop: 2, fontFamily: "monospace" }}>
-                      models/{m.id}
-                    </div>
-                  </div>
-                  {localModel === m.id && <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Bot size={14} style={{ color: "#a78bfa" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(167,139,250,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Model AI
+                </span>
+              </div>
+              <button
+                onClick={checkModels}
+                disabled={checkingModels || localKeys.length === 0}
+                title={localKeys.length === 0 ? "Cần có API Key để kiểm tra" : "Kiểm tra model nào đang hoạt động"}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
+                  borderRadius: 8, border: "1px solid rgba(108,92,231,0.3)",
+                  background: "rgba(108,92,231,0.1)", color: localKeys.length === 0 ? "rgba(167,139,250,0.25)" : "#c4b5fd",
+                  fontSize: 11, fontWeight: 600, cursor: localKeys.length === 0 ? "not-allowed" : "pointer",
+                }}
+              >
+                {checkingModels
+                  ? <><Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} />Đang kiểm tra...</>
+                  : <><FlaskConical size={11} />Kiểm tra</>
+                }
+              </button>
             </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {GEMINI_MODELS.map((m) => {
+                const st = modelStatuses[m.id];
+                const isSelected = localModel === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setLocalModel(m.id)}
+                    style={{
+                      padding: "12px 16px", borderRadius: 12, textAlign: "left", cursor: "pointer",
+                      border: `1px solid ${isSelected ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`,
+                      background: isSelected ? "rgba(108,92,231,0.15)" : "rgba(255,255,255,0.03)",
+                      color: "#fff", transition: "all 0.15s",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.8)" }}>
+                        {m.label}
+                        {m.badge && (
+                          <span style={{
+                            marginLeft: 8, fontSize: 9, padding: "2px 7px", borderRadius: 20,
+                            background: isSelected ? "rgba(108,92,231,0.35)" : "rgba(255,255,255,0.07)",
+                            color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.35)",
+                            fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
+                          }}>
+                            {m.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", marginTop: 2, fontFamily: "monospace" }}>
+                        models/{m.id}
+                      </div>
+                      {st?.status === "fallback" && st.resolvedTo && (
+                        <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                          <AlertCircle size={9} />
+                          Auto-fallback → <span style={{ fontFamily: "monospace" }}>{st.resolvedTo}</span>
+                        </div>
+                      )}
+                      {st?.status === "error" && (
+                        <div style={{ fontSize: 10, color: "#ef4444", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                          <AlertCircle size={9} />
+                          Không tìm thấy model phù hợp
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      {st?.status === "ok" && <CheckCircle2 size={14} style={{ color: "#22c55e" }} />}
+                      {st?.status === "fallback" && <AlertCircle size={14} style={{ color: "#f59e0b" }} />}
+                      {st?.status === "error" && <AlertCircle size={14} style={{ color: "#ef4444" }} />}
+                      {!st && Object.keys(modelStatuses).length === 0 && isSelected && (
+                        <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
+                      )}
+                      {!st && Object.keys(modelStatuses).length > 0 && (
+                        <HelpCircle size={13} style={{ color: "rgba(255,255,255,0.15)" }} />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {Object.keys(modelStatuses).length > 0 && (
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 10, lineHeight: 1.5, paddingLeft: 4 }}>
+                <CheckCircle2 size={8} style={{ display: "inline", color: "#22c55e", marginRight: 4 }} />Khả dụng trực tiếp
+                &nbsp;&nbsp;
+                <AlertCircle size={8} style={{ display: "inline", color: "#f59e0b", marginRight: 4 }} />Tự động chuyển sang model thay thế khi gọi
+              </p>
+            )}
           </div>
 
           {/* ── API KEYS ── */}
