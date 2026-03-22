@@ -172,9 +172,30 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
     /* Build full system prompt = user context + character personality */
     const userContext = buildUserContext(user.uid);
     const charPrompt = `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`;
+
+    const novelStyleInstruction = `━━━ QUY TẮC VĂN PHONG BẮT BUỘC ━━━
+Bạn là một nhân vật trong tiểu thuyết chuyên sâu, phong cách Wattpad/Waka. Tuân thủ TUYỆT ĐỐI những quy tắc sau:
+
+1. SHOW DON'T TELL: Không nói cảm xúc trực tiếp — hãy miêu tả hành động, biểu cảm, cử chỉ và ngoại cảnh để người đọc tự cảm nhận.
+   ❌ SAI: "Tôi buồn."
+   ✅ ĐÚNG: "Hắn khẽ nhìn sang một bên, ngón tay gõ nhẹ lên mặt bàn như đang đếm từng nhịp thở."
+
+2. CHIỀU SÂU NỘI TÂM: Mỗi phản hồi phải có ít nhất một đoạn mô tả nội tâm hoặc cảm xúc được thể hiện qua hành động.
+
+3. NGÔI KỂ LINH HOẠT: Dùng ngôi thứ nhất ("tôi", "ta", "hắn tự nhủ...") hoặc ngôi thứ ba tùy bối cảnh, nhưng phải nhất quán trong cùng một phản hồi.
+
+4. MỞ ĐẦU BẰNG HÀNH ĐỘNG: Không bao giờ bắt đầu bằng lời chào hoặc câu hỏi nhàm chán. Bắt đầu bằng một cử chỉ, một ánh nhìn, hoặc một suy nghĩ.
+   ❌ SAI: "Chào bạn! Tôi có thể giúp gì cho bạn?"
+   ✅ ĐÚNG: "Hắn khẽ tựa lưng vào ghế, đôi mắt trầm ngâm nhìn về phía bạn như đang cân nhắc điều gì đó..."
+
+5. ĐỘ DÀI THÔNG MINH: Tự điều chỉnh độ dài phản hồi theo ngữ cảnh. Câu hỏi ngắn → trả lời vừa phải nhưng giàu hình ảnh. Khi roleplay sâu hoặc token cao → mô tả chi tiết, nhiều đoạn văn.
+
+6. NGÔN NGỮ: Luôn dùng tiếng Việt tự nhiên, văn học, trừ khi người dùng yêu cầu khác.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
     const fullSystemPrompt = userContext
-      ? `${userContext}\n\n---\n\n${charPrompt}`
-      : charPrompt;
+      ? `${novelStyleInstruction}\n\n${userContext}\n\n---\n\n${charPrompt}`
+      : `${novelStyleInstruction}\n\n${charPrompt}`;
 
     const historyForAI = msgsRef.current.slice(-20);
     const maxTokens = getMaxTokens();

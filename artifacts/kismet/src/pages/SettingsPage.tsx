@@ -3,7 +3,7 @@ import { useKeys } from "@/hooks/useKeys";
 import { GEMINI_MODELS } from "@/lib/types";
 import { testModel } from "@/lib/gemini";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders, FlaskConical, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders, FlaskConical, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
 
 type ModelStatus = "ok" | "error" | "checking" | "pending";
 
@@ -66,6 +66,9 @@ export default function SettingsPage({ onBack }: Props) {
   /* Logo */
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
+
+  /* API Key input visibility */
+  const [showNewKey, setShowNewKey] = useState(false);
 
   /* Model availability check */
   const [modelStatuses, setModelStatuses] = useState<Record<string, ModelStatus>>({});
@@ -464,13 +467,49 @@ export default function SettingsPage({ onBack }: Props) {
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="password" value={newKey}
-                onChange={(e) => setNewKey(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addKey()}
-                placeholder="AIza... (Dán API Key vào đây)"
-                autoComplete="off" style={{ ...inputStyle, flex: 1 }}
-              />
+              {/* Input với eye toggle + glow + auto-trim paste */}
+              <div style={{ flex: 1, position: "relative" }}>
+                <input
+                  type={showNewKey ? "text" : "password"}
+                  value={newKey}
+                  onChange={(e) => setNewKey(e.target.value)}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData("text").trim();
+                    setNewKey(pasted);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && addKey()}
+                  placeholder="AIza... (Dán API Key vào đây)"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  inputMode="text"
+                  style={{
+                    ...inputStyle,
+                    width: "100%",
+                    paddingRight: 44,
+                    border: newKey.trim()
+                      ? "1px solid rgba(108,92,231,0.6)"
+                      : "1px solid rgba(108,92,231,0.2)",
+                    boxShadow: newKey.trim()
+                      ? "0 0 0 3px rgba(108,92,231,0.15)"
+                      : "none",
+                    transition: "border 0.2s, box-shadow 0.2s",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewKey(v => !v)}
+                  style={{
+                    position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", color: "rgba(167,139,250,0.5)",
+                    cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
+                  }}
+                >
+                  {showNewKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
               <button
                 onClick={addKey} disabled={!newKey.trim()}
                 style={{
@@ -479,6 +518,7 @@ export default function SettingsPage({ onBack }: Props) {
                   color: newKey.trim() ? "#a78bfa" : "rgba(255,255,255,0.2)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   cursor: newKey.trim() ? "pointer" : "not-allowed", flexShrink: 0,
+                  transition: "background 0.2s",
                 }}
               >
                 <Plus size={18} />
