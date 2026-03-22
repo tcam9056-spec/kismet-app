@@ -28,8 +28,7 @@ function loadLocalMessages(email: string, characterId: string): Message[] {
     const raw = localStorage.getItem(localKey(email, characterId));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as Message[];
+    return Array.isArray(parsed) ? (parsed as Message[]) : [];
   } catch {
     return [];
   }
@@ -38,7 +37,38 @@ function loadLocalMessages(email: string, characterId: string): Message[] {
 function saveLocalMessages(email: string, characterId: string, msgs: Message[]) {
   try {
     localStorage.setItem(localKey(email, characterId), JSON.stringify(msgs));
+  } catch {}
+}
+
+/* ── User context injected into every AI prompt ── */
+function buildUserContext(uid: string): string {
+  try {
+    const raw = localStorage.getItem(`kismet_profile_${uid}`);
+    if (!raw) return "";
+    const p = JSON.parse(raw) as Record<string, string>;
+    const lines: string[] = [];
+    if (p.gender?.trim()) lines.push(`Giới tính: ${p.gender}`);
+    if (p.personality?.trim()) lines.push(`Tính cách: ${p.personality}`);
+    if (p.appearance?.trim()) lines.push(`Ngoại hình: ${p.appearance}`);
+    if (p.bio?.trim()) lines.push(`Thông tin bản thân: ${p.bio}`);
+    if (lines.length === 0) return "";
+    return (
+      `[THÔNG TIN VỀ NGƯỜI DÙNG]\n` +
+      lines.join("\n") +
+      `\n\nDựa trên thông tin ngoại hình và tính cách của người dùng này để miêu tả hành động và bối cảnh câu chuyện một cách chân thực và phù hợp.`
+    );
   } catch {
+    return "";
+  }
+}
+
+/* ── Read maxOutputTokens from localStorage ── */
+function getMaxTokens(): number {
+  try {
+    const v = parseInt(localStorage.getItem("kismet_maxTokens") || "2048", 10);
+    return isNaN(v) ? 2048 : Math.min(Math.max(v, 200), 12000);
+  } catch {
+    return 2048;
   }
 }
 
@@ -82,10 +112,7 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
 
     getDocs(q)
       .then((snap) => {
-        if (snap.empty) {
-          setLoading(false);
-          return;
-        }
+        if (snap.empty) { setLoading(false); return; }
         const loaded: Message[] = snap.docs.map((d) => {
           const data = d.data();
           return {
@@ -104,9 +131,7 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
         saveLocalMessages(email, character.id, loaded);
         setLoading(false);
       })
-      .catch(() => {
-        setLoading(false);
-      });
+      .catch(() => { setLoading(false); });
   }, [user?.uid, character?.id]);
 
   const send = async (text: string) => {
@@ -121,12 +146,7 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
     chatIdRef.current = chatId;
 
     const tempId = genId("user");
-    const userMsg: Message = {
-      id: tempId,
-      role: "user",
-      content: text,
-      timestamp: Date.now(),
-    };
+    const userMsg: Message = { id: tempId, role: "user", content: text, timestamp: Date.now() };
 
     const updatedMsgs = [...msgsRef.current, userMsg];
     setMessages(updatedMsgs);
@@ -136,25 +156,28 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
     setError(null);
     setStatusText("Đang kết nối tâm giao...");
 
+    /* Save user msg to Firestore in background */
     (async () => {
       try {
-        const messagesRef = collection(db, "chats", chatId, "messages");
-        const docRef = await addDoc(messagesRef, {
-          role: "user",
-          content: text,
-          timestamp: serverTimestamp(),
-        });
+        const mRef = collection(db, "chats", chatId, "messages");
+        const docRef = await addDoc(mRef, { role: "user", content: text, timestamp: serverTimestamp() });
         setMessages((prev) => {
           const next = prev.map((m) => (m.id === tempId ? { ...m, id: docRef.id } : m));
           saveLocalMessages(email, character.id, next);
           return next;
         });
-      } catch {
-      }
+      } catch {}
     })();
 
-    const systemPrompt = `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`;
+    /* Build full system prompt = user context + character personality */
+    const userContext = buildUserContext(user.uid);
+    const charPrompt = `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`;
+    const fullSystemPrompt = userContext
+      ? `${userContext}\n\n---\n\n${charPrompt}`
+      : charPrompt;
+
     const historyForAI = msgsRef.current.slice(-20);
+    const maxTokens = getMaxTokens();
 
     let lastError: unknown = null;
     let response: string | null = null;
@@ -165,29 +188,22 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
       const apiKey = keys[keyIdx];
       try {
         setStatusText(
-          attempt === 0
-            ? "Linh hồn đang phản hồi..."
-            : `Đang thử key ${attempt + 1}/${totalKeys}...`
+          attempt === 0 ? "Linh hồn đang phản hồi..." : `Đang thử key ${attempt + 1}/${totalKeys}...`
         );
-        response = await sendMessage(apiKey, model, systemPrompt, historyForAI, text);
+        response = await sendMessage(apiKey, model, fullSystemPrompt, historyForAI, text, maxTokens);
         keyIndexRef.current = keyIdx;
         break;
       } catch (err: unknown) {
         lastError = err;
-        const errCode = (err as { code?: number })?.code;
-        if (errCode === 429 || errCode === 400) continue;
+        const code = (err as { code?: number })?.code;
+        if (code === 429 || code === 400) continue;
         break;
       }
     }
 
     if (response) {
       const aiId = genId("ai");
-      const aiMsg: Message = {
-        id: aiId,
-        role: "assistant",
-        content: response,
-        timestamp: Date.now(),
-      };
+      const aiMsg: Message = { id: aiId, role: "assistant", content: response, timestamp: Date.now() };
       setMessages((prev) => {
         const next = [...prev, aiMsg];
         saveLocalMessages(email, character.id, next);
@@ -196,19 +212,16 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
 
       (async () => {
         try {
-          const messagesRef = collection(db, "chats", chatId, "messages");
-          const aiDocRef = await addDoc(messagesRef, {
-            role: "assistant",
-            content: response,
-            timestamp: serverTimestamp(),
+          const mRef = collection(db, "chats", chatId, "messages");
+          const aiDocRef = await addDoc(mRef, {
+            role: "assistant", content: response, timestamp: serverTimestamp(),
           });
           setMessages((prev) => {
             const next = prev.map((m) => (m.id === aiId ? { ...m, id: aiDocRef.id } : m));
             saveLocalMessages(email, character.id, next);
             return next;
           });
-        } catch {
-        }
+        } catch {}
       })();
     } else {
       setError(getErrorMessage(lastError));
@@ -232,8 +245,7 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
     try {
       const chatDocRef = doc(db, "chats", chatId);
       await setDoc(chatDocRef, { cleared: true, clearedAt: serverTimestamp() }, { merge: true });
-    } catch {
-    }
+    } catch {}
   };
 
   return { messages, loading, sending, statusText, error, send, clearHistory };

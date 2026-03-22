@@ -1,12 +1,46 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useKeys } from "@/hooks/useKeys";
 import { GEMINI_MODELS } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap } from "lucide-react";
+import { Loader2, Plus, Trash2, ArrowLeft, Key, Bot, Zap, Image, Sliders } from "lucide-react";
 
-interface Props {
-  onBack: () => void;
+const MAX_TOKENS_KEY = "kismet_maxTokens";
+const LOGO_KEY = "kismet_logo";
+
+function loadMaxTokens(): number {
+  try {
+    const v = parseInt(localStorage.getItem(MAX_TOKENS_KEY) || "2048", 10);
+    return isNaN(v) ? 2048 : Math.min(Math.max(v, 200), 12000);
+  } catch { return 2048; }
 }
+
+function saveMaxTokens(v: number) {
+  localStorage.setItem(MAX_TOKENS_KEY, String(v));
+}
+
+function loadLogo(): string | null {
+  return localStorage.getItem(LOGO_KEY);
+}
+
+function saveLogo(b64: string) {
+  localStorage.setItem(LOGO_KEY, b64);
+}
+
+function removeLogo() {
+  localStorage.removeItem(LOGO_KEY);
+}
+
+function tokenLabel(v: number): string {
+  if (v <= 300) return "Rất ngắn";
+  if (v <= 800) return "Ngắn";
+  if (v <= 1500) return "Trung bình";
+  if (v <= 3000) return "Dài";
+  if (v <= 6000) return "Rất dài";
+  if (v <= 9000) return "Tiểu thuyết";
+  return "Sử thi";
+}
+
+interface Props { onBack: () => void; }
 
 export default function SettingsPage({ onBack }: Props) {
   const { user } = useAuth();
@@ -19,6 +53,13 @@ export default function SettingsPage({ onBack }: Props) {
   const [serverKeyAvailable, setServerKeyAvailable] = useState(false);
   const [loadingServerKey, setLoadingServerKey] = useState(false);
 
+  /* Token slider */
+  const [maxTokens, setMaxTokens] = useState(2048);
+
+  /* Logo */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!loading) {
       setLocalKeys(keys);
@@ -27,11 +68,14 @@ export default function SettingsPage({ onBack }: Props) {
   }, [loading, keys, selectedModel]);
 
   useEffect(() => {
+    setMaxTokens(loadMaxTokens());
+    setLogoUrl(loadLogo());
+  }, []);
+
+  useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
-      .then((data) => {
-        if (data.hasDefaultKey) setServerKeyAvailable(true);
-      })
+      .then((data) => { if (data.hasDefaultKey) setServerKeyAvailable(true); })
       .catch(() => {});
   }, []);
 
@@ -54,9 +98,7 @@ export default function SettingsPage({ onBack }: Props) {
     setNewKey("");
   };
 
-  const removeKey = (index: number) => {
-    setLocalKeys((prev) => prev.filter((_, i) => i !== index));
-  };
+  const removeKey = (i: number) => setLocalKeys((prev) => prev.filter((_, idx) => idx !== i));
 
   const handleSave = async () => {
     setSaving(true);
@@ -66,30 +108,47 @@ export default function SettingsPage({ onBack }: Props) {
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(108,92,231,0.2)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    fontSize: 13,
-    outline: "none",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
+  const handleTokenChange = (v: number) => {
+    setMaxTokens(v);
+    saveMaxTokens(v);
   };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      saveLogo(b64);
+      setLogoUrl(b64);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleRemoveLogo = () => {
+    removeLogo();
+    setLogoUrl(null);
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "10px 14px", borderRadius: 12,
+    border: "1px solid rgba(108,92,231,0.2)", background: "rgba(255,255,255,0.05)",
+    color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+  };
+
+  const sectionLabel = (icon: React.ReactNode, text: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+      {icon}
+      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(167,139,250,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+        {text}
+      </span>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: "#0a0a0f",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <div style={{ minHeight: "100dvh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Loader2 size={22} style={{ color: "#a78bfa", animation: "spin 1s linear infinite" }} />
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -97,85 +156,153 @@ export default function SettingsPage({ onBack }: Props) {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "#0a0a0f",
-        color: "#fff",
-        fontFamily: "'Segoe UI', system-ui, sans-serif",
-      }}
-    >
+    <div style={{ minHeight: "100dvh", background: "#0a0a0f", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "20px 20px 16px",
-            borderBottom: "1px solid rgba(108,92,231,0.15)",
-          }}
-        >
-          <button
-            onClick={onBack}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.05)",
-              color: "#a78bfa",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 20px 16px", borderBottom: "1px solid rgba(108,92,231,0.15)" }}>
+          <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             <ArrowLeft size={16} />
           </button>
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>Cài đặt</h1>
-            <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)", marginTop: 1 }}>
-              {user?.email}
-            </p>
+            <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)", marginTop: 1 }}>{user?.email}</p>
           </div>
         </div>
 
         <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 32 }}>
-          {/* Model Selection */}
+
+          {/* ── LOGO / BRANDING ── */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <Bot size={14} style={{ color: "#a78bfa" }} />
-              <span
+            {sectionLabel(<Image size={14} style={{ color: "#a78bfa" }} />, "Logo ứng dụng")}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px", borderRadius: 14, border: "1px solid rgba(108,92,231,0.15)", background: "rgba(255,255,255,0.02)" }}>
+              <div
+                onClick={() => logoFileRef.current?.click()}
                 style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "rgba(167,139,250,0.5)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
+                  width: 64, height: 64, borderRadius: 18,
+                  background: logoUrl ? "transparent" : "rgba(108,92,231,0.12)",
+                  border: "2px solid rgba(108,92,231,0.35)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", overflow: "hidden", flexShrink: 0,
+                  boxShadow: logoUrl ? "0 0 16px rgba(108,92,231,0.25)" : "none",
                 }}
               >
-                Model AI
-              </span>
+                {logoUrl ? (
+                  <img src={logoUrl} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <span style={{ fontSize: 30 }}>🔮</span>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>KISMET</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.4 }}>
+                  {logoUrl ? "Logo tuỳ chỉnh đang được dùng" : "Đang dùng logo mặc định 🔮"}
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => logoFileRef.current?.click()}
+                    style={{
+                      padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(108,92,231,0.4)",
+                      background: "rgba(108,92,231,0.15)", color: "#c4b5fd", fontSize: 12,
+                      fontWeight: 600, cursor: "pointer",
+                    }}
+                  >
+                    {logoUrl ? "Thay logo" : "Tải logo lên"}
+                  </button>
+                  {logoUrl && (
+                    <button
+                      onClick={handleRemoveLogo}
+                      style={{
+                        padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)",
+                        background: "rgba(239,68,68,0.08)", color: "rgba(239,68,68,0.7)", fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Xoá
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
+            <input ref={logoFileRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: "none" }} />
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 8, paddingLeft: 4 }}>
+              Logo lưu dưới dạng Base64 · Khóa: <span style={{ fontFamily: "monospace" }}>kismet_logo</span>
+            </p>
+          </div>
+
+          {/* ── TOKEN SLIDER ── */}
+          <div>
+            {sectionLabel(<Sliders size={14} style={{ color: "#a78bfa" }} />, "Độ dài phản hồi AI")}
+            <div style={{ padding: "18px 16px", borderRadius: 14, border: "1px solid rgba(108,92,231,0.15)", background: "rgba(255,255,255,0.02)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                  {maxTokens.toLocaleString()} tokens
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: "#a78bfa",
+                  background: "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.3)",
+                  borderRadius: 20, padding: "2px 10px",
+                }}>
+                  {tokenLabel(maxTokens)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={200}
+                max={12000}
+                step={100}
+                value={maxTokens}
+                onChange={(e) => handleTokenChange(parseInt(e.target.value, 10))}
+                style={{ width: "100%", accentColor: "#6c5ce7", cursor: "pointer", margin: "4px 0" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                {[
+                  { v: 200, label: "200\nNgắn" },
+                  { v: 2048, label: "2K\nThường" },
+                  { v: 4096, label: "4K\nDài" },
+                  { v: 8000, label: "8K\nNovella" },
+                  { v: 12000, label: "12K\nSử thi" },
+                ].map(({ v, label }) => (
+                  <button
+                    key={v}
+                    onClick={() => handleTokenChange(v)}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", padding: 0,
+                      textAlign: "center",
+                    }}
+                  >
+                    {label.split("\n").map((line, i) => (
+                      <div key={i} style={{
+                        fontSize: i === 0 ? 11 : 9,
+                        color: maxTokens === v ? "#a78bfa" : "rgba(255,255,255,0.25)",
+                        fontWeight: maxTokens === v ? 700 : 400,
+                        lineHeight: 1.3,
+                      }}>
+                        {line}
+                      </div>
+                    ))}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 12, lineHeight: 1.5 }}>
+                Lưu tự động vào <span style={{ fontFamily: "monospace", color: "rgba(167,139,250,0.4)" }}>kismet_maxTokens</span> · Giới hạn: 200 – 12.000
+              </p>
+            </div>
+          </div>
+
+          {/* ── MODEL SELECTION ── */}
+          <div>
+            {sectionLabel(<Bot size={14} style={{ color: "#a78bfa" }} />, "Model AI")}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {GEMINI_MODELS.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setLocalModel(m.id)}
                   style={{
-                    padding: "12px 16px",
-                    borderRadius: 12,
+                    padding: "12px 16px", borderRadius: 12, textAlign: "left", cursor: "pointer",
                     border: `1px solid ${localModel === m.id ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`,
                     background: localModel === m.id ? "rgba(108,92,231,0.15)" : "rgba(255,255,255,0.03)",
-                    color: "#fff",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                    color: "#fff", transition: "all 0.15s",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
                   }}
                 >
                   <div>
@@ -186,38 +313,18 @@ export default function SettingsPage({ onBack }: Props) {
                       models/{m.id}
                     </div>
                   </div>
-                  {localModel === m.id && (
-                    <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
-                  )}
+                  {localModel === m.id && <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* API Keys */}
+          {/* ── API KEYS ── */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <Key size={14} style={{ color: "#a78bfa" }} />
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "rgba(167,139,250,0.5)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                API Keys (Pháp Khí)
-              </span>
-            </div>
+            {sectionLabel(<Key size={14} style={{ color: "#a78bfa" }} />, "API Keys (Pháp Khí)")}
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 14, lineHeight: 1.5 }}>
               Thêm nhiều key để tự động xoay vòng khi gặp lỗi 429/400. Lấy key tại{" "}
-              <a
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "#a78bfa", textDecoration: "underline" }}
-              >
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: "#a78bfa", textDecoration: "underline" }}>
                 aistudio.google.com/apikey
               </a>
             </p>
@@ -227,90 +334,31 @@ export default function SettingsPage({ onBack }: Props) {
                 onClick={useServerKey}
                 disabled={loadingServerKey}
                 style={{
-                  width: "100%",
-                  marginBottom: 12,
-                  padding: "11px 16px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(108,92,231,0.3)",
-                  background: "rgba(108,92,231,0.1)",
-                  color: "#c4b5fd",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  transition: "all 0.15s",
+                  width: "100%", marginBottom: 12, padding: "11px 16px", borderRadius: 12,
+                  border: "1px solid rgba(108,92,231,0.3)", background: "rgba(108,92,231,0.1)",
+                  color: "#c4b5fd", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s",
                 }}
               >
-                {loadingServerKey ? (
-                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                ) : (
-                  <Zap size={14} />
-                )}
+                {loadingServerKey ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={14} />}
                 Dùng Google API Key từ hệ thống (tự động)
               </button>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
               {localKeys.map((key, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    background: "rgba(255,255,255,0.03)",
-                  }}
-                >
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
                   <Key size={13} style={{ color: "rgba(167,139,250,0.3)", flexShrink: 0 }} />
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 12,
-                      color: "rgba(255,255,255,0.5)",
-                      fontFamily: "monospace",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <span style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {key.slice(0, 8)}••••••••{key.slice(-4)}
                   </span>
-                  <button
-                    onClick={() => removeKey(i)}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "rgba(239,68,68,0.1)",
-                      color: "rgba(239,68,68,0.5)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
-                  >
+                  <button onClick={() => removeKey(i)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(239,68,68,0.1)", color: "rgba(239,68,68,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                     <Trash2 size={12} />
                   </button>
                 </div>
               ))}
               {localKeys.length === 0 && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "20px 0",
-                    border: "1px dashed rgba(108,92,231,0.2)",
-                    borderRadius: 12,
-                    color: "rgba(255,255,255,0.2)",
-                    fontSize: 13,
-                  }}
-                >
+                <div style={{ textAlign: "center", padding: "20px 0", border: "1px dashed rgba(108,92,231,0.2)", borderRadius: 12, color: "rgba(255,255,255,0.2)", fontSize: 13 }}>
                   Chưa có API Key nào
                 </div>
               )}
@@ -318,29 +366,20 @@ export default function SettingsPage({ onBack }: Props) {
 
             <div style={{ display: "flex", gap: 8 }}>
               <input
-                type="password"
-                value={newKey}
+                type="password" value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addKey()}
                 placeholder="AIza... (Dán API Key vào đây)"
-                autoComplete="off"
-                style={{ ...inputStyle, flex: 1 }}
+                autoComplete="off" style={{ ...inputStyle, flex: 1 }}
               />
               <button
-                onClick={addKey}
-                disabled={!newKey.trim()}
+                onClick={addKey} disabled={!newKey.trim()}
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  border: "none",
+                  width: 44, height: 44, borderRadius: 12, border: "none",
                   background: newKey.trim() ? "rgba(108,92,231,0.3)" : "rgba(255,255,255,0.05)",
                   color: newKey.trim() ? "#a78bfa" : "rgba(255,255,255,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: newKey.trim() ? "pointer" : "not-allowed",
-                  flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: newKey.trim() ? "pointer" : "not-allowed", flexShrink: 0,
                 }}
               >
                 <Plus size={18} />
@@ -348,34 +387,13 @@ export default function SettingsPage({ onBack }: Props) {
             </div>
           </div>
 
-          {/* Firestore rules hint */}
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 14,
-              background: "rgba(59,130,246,0.07)",
-              border: "1px solid rgba(59,130,246,0.15)",
-            }}
-          >
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#93c5fd", marginBottom: 8 }}>
-              📋 Firestore Security Rules
-            </p>
+          {/* ── FIRESTORE RULES HINT ── */}
+          <div style={{ padding: 16, borderRadius: 14, background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.15)" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#93c5fd", marginBottom: 8 }}>📋 Firestore Security Rules</p>
             <p style={{ fontSize: 12, color: "rgba(147,197,253,0.6)", marginBottom: 8, lineHeight: 1.5 }}>
               Nếu không tải được chat, vào Firestore Console → Rules → dán:
             </p>
-            <pre
-              style={{
-                background: "rgba(0,0,0,0.4)",
-                borderRadius: 8,
-                padding: "10px 12px",
-                fontSize: 11,
-                color: "rgba(255,255,255,0.5)",
-                overflowX: "auto",
-                fontFamily: "monospace",
-                lineHeight: 1.5,
-                margin: 0,
-              }}
-            >{`rules_version = '2';
+            <pre style={{ background: "rgba(0,0,0,0.4)", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.5)", overflowX: "auto", fontFamily: "monospace", lineHeight: 1.5, margin: 0 }}>{`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
@@ -385,46 +403,27 @@ service cloud.firestore {
 }`}</pre>
           </div>
 
-          {/* Save button */}
+          {/* ── SAVE BUTTON ── */}
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
-              padding: "14px 0",
-              borderRadius: 14,
-              border: "none",
-              background: saved
-                ? "linear-gradient(135deg, #16a34a, #15803d)"
-                : "linear-gradient(135deg, #7c3aed, #6c5ce7)",
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: saving ? "not-allowed" : "pointer",
+              padding: "14px 0", borderRadius: 14, border: "none",
+              background: saved ? "linear-gradient(135deg, #16a34a, #15803d)" : "linear-gradient(135deg, #7c3aed, #6c5ce7)",
+              color: "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
               boxShadow: "0 6px 20px rgba(108,92,231,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              transition: "background 0.3s",
-              marginBottom: 32,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              transition: "background 0.3s", marginBottom: 32,
             }}
           >
-            {saving ? (
-              <>
-                <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-                Đang lưu...
-              </>
-            ) : saved ? (
-              "✓ Đã lưu thành công!"
-            ) : (
-              "Lưu cài đặt"
-            )}
+            {saving ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Đang lưu...</> : saved ? "✓ Đã lưu thành công!" : "Lưu cài đặt (Model & API Keys)"}
           </button>
         </div>
       </div>
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        input[type="range"] { height: 6px; }
         input::placeholder { color: rgba(255,255,255,0.2); }
       `}</style>
     </div>
