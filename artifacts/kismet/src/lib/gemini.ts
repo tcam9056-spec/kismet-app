@@ -1,74 +1,68 @@
 import type { GeminiModel, Message } from "./types";
 
-const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-
-function modelUrl(modelId: string, apiKey: string): string {
-  const id = modelId.startsWith("models/") ? modelId : `models/${modelId}`;
-  return `${API_BASE}/${id}:generateContent?key=${apiKey}`;
-}
-
 export interface GeminiError { code: number; message: string; }
 
-/** Send a chat message — gọi thẳng model được chọn, không fallback */
 export async function sendMessage(
   apiKey: string,
   model: GeminiModel,
   systemPrompt: string,
   history: Message[],
   userMessage: string,
-  maxOutputTokens: number = 2048
+  maxOutputTokens: number = 4096
 ): Promise<string> {
-  const modelId = (typeof model === "string" && model.trim()) ? model.trim() : "gemini-2.5-flash";
+  // GeminiModel là string — dùng thẳng, không dùng .id
+  let mId: string = (typeof model === "string" && model.trim()) ? model.trim() : "gemini-2.5-flash";
+  if (!mId.startsWith("models/")) mId = `models/${mId}`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
 
   const contents = history.map(msg => ({
     role: msg.role === "user" ? "user" : "model",
     parts: [{ text: msg.content }],
   }));
+
   contents.push({ role: "user", parts: [{ text: userMessage }] });
 
-  const body = {
-    systemInstruction: {
-      parts: [{
-        text: `${systemPrompt}\n\nQuy tắc bắt buộc: Luôn phản hồi 100% bằng tiếng Việt tự nhiên, trừ khi người dùng yêu cầu ngôn ngữ khác.`,
-      }],
-    },
-    contents,
-    generationConfig: {
-      temperature: 0.92,
-      maxOutputTokens: Math.min(Math.max(maxOutputTokens, 200), 12000),
-      topP: 0.95,
-    },
-  };
-
-  const response = await fetch(modelUrl(modelId, apiKey), {
+  const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      contents: contents,
+      generationConfig: {
+        temperature: 0.9,
+        maxOutputTokens: Math.min(Math.max(maxOutputTokens, 200), 12000),
+      },
+    }),
   });
 
-  if (response.ok) {
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw Object.assign(new Error("AI không trả về nội dung. Vui lòng thử lại."), { code: 0 });
-    return text;
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const e = new Error((err as { error?: { message?: string } }).error?.message || `Lỗi ${response.status}`);
+    (e as Error & { code: number }).code = response.status;
+    throw e;
   }
 
-  const errData = await response.json().catch(() => ({}));
-  const errMsg = (errData as { error?: { message?: string } })?.error?.message || `Lỗi kết nối AI (HTTP ${response.status})`;
-  throw Object.assign(new Error(errMsg), { code: response.status });
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
 }
 
-/** Kiểm tra nhanh xem một model có hoạt động với API key không */
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** Kiểm tra nhanh xem model có hoạt động với API key không */
 export async function testModel(apiKey: string, modelId: string): Promise<boolean> {
   try {
-    const body = {
-      contents: [{ role: "user", parts: [{ text: "hi" }] }],
-      generationConfig: { maxOutputTokens: 5 },
-    };
-    const res = await fetch(modelUrl(modelId, apiKey), {
+    let mId = modelId.trim();
+    if (!mId.startsWith("models/")) mId = `models/${mId}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: "hi" }] }],
+        generationConfig: { maxOutputTokens: 5 },
+      }),
     });
     return res.ok;
   } catch {
@@ -76,15 +70,12 @@ export async function testModel(apiKey: string, modelId: string): Promise<boolea
   }
 }
 
-export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
-}
-
-/** Raw Gemini call — cho phone/gift generation */
+/** Raw call — dùng cho phone/gift generation */
 export async function geminiRaw(apiKey: string, model: string, prompt: string, maxTokens = 2048): Promise<string> {
-  const modelId = (typeof model === "string" && model.trim()) ? model.trim() : "gemini-2.5-flash";
-  const res = await fetch(modelUrl(modelId, apiKey), {
+  let mId = (typeof model === "string" && model.trim()) ? model.trim() : "gemini-2.5-flash";
+  if (!mId.startsWith("models/")) mId = `models/${mId}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/${mId}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
