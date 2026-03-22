@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useCharacters } from "@/hooks/useCharacters";
-import { uploadCharacterAvatar } from "@/lib/firebase";
+import { compressImageToBase64 } from "@/lib/firebase";
 import { ArrowLeft, Loader2, Upload, Globe, Lock } from "lucide-react";
 
 interface Props { onBack: () => void; }
@@ -121,9 +121,18 @@ export default function AddCharacterPage({ onBack }: Props) {
 
       const fullPersonality = parts.join("");
 
+      /* Compress avatar to base64 before creating so it's embedded in Firestore from day 1 */
+      let avatarValue = "🔮";
+      if (avatarFile) {
+        try {
+          const b64 = await compressImageToBase64(avatarFile);
+          if (b64) avatarValue = b64;
+        } catch { /* keep emoji fallback */ }
+      }
+
       const newId = await addCharacter({
         name: name.trim(),
-        avatar: "🔮",
+        avatar: avatarValue,
         slogan: slogan.trim(),
         curse: "",
         tags: selectedTags,
@@ -132,15 +141,7 @@ export default function AddCharacterPage({ onBack }: Props) {
         isPublic,
       });
 
-      if (avatarFile && newId) {
-        try {
-          const { updateCharacterAvatar } = await import("@/lib/firebase");
-          await updateCharacterAvatar(newId, avatarFile);
-          await refetch();
-        } catch {
-          /* avatar upload failed — character still created with emoji */
-        }
-      }
+      if (newId) await refetch();
       onBack();
     } catch {
       setError("Không thể tạo nhân vật. Vui lòng thử lại.");

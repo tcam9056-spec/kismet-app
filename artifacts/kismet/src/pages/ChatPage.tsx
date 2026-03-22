@@ -34,8 +34,14 @@ interface PhoneData {
 /* ═══════════════════════════════════════════════════
    LOCALSTORAGE HELPERS
 ═══════════════════════════════════════════════════ */
-const getCharAvatarUrl = (character: { id: string; avatar: string }) =>
-  character.avatar.startsWith("http") ? character.avatar : (localStorage.getItem(`kismet_char_avatar_${character.id}`) || null);
+const getCharAvatarUrl = (character: { id: string; avatar: string }) => {
+  /* base64 or http URL = real image */
+  if (character.avatar.startsWith("data:") || character.avatar.startsWith("http")) {
+    return character.avatar;
+  }
+  /* fall back to localStorage cache (e.g. from a ChatPage upload) */
+  return localStorage.getItem(`kismet_char_avatar_${character.id}`) || null;
+};
 const loadUserAvatar = (email: string) => localStorage.getItem(`avatar_${email}`);
 const saveUserAvatar = (email: string, b64: string) => localStorage.setItem(`avatar_${email}`, b64);
 
@@ -99,43 +105,6 @@ function readFileAsBase64(file: File): Promise<string> {
   return new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result as string); r.readAsDataURL(file); });
 }
 
-async function normalizeImageBase64(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", 0.88));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); readFileAsBase64(file).then(resolve); };
-    img.src = url;
-  });
-}
-
-async function normalizeImageFile(file: File): Promise<File> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(blob => {
-        resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file);
-      }, "image/jpeg", 0.88);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
 
 /* ═══════════════════════════════════════════════════
    GEMINI JSON HELPER (phone & gift generation)
@@ -179,12 +148,35 @@ function renderNovel(text: string): React.ReactNode[] {
 /* ═══════════════════════════════════════════════════
    AVATAR COMPONENTS
 ═══════════════════════════════════════════════════ */
-function CharAvatar({ src, emoji, size }: { src: string | null; emoji: string; size: number }) {
+function CharAvatarPlaceholder({ emoji, size }: { emoji: string; size: number }) {
+  /* Beautiful gradient circle with the character's emoji */
   return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: src ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.48, flexShrink: 0, border: `${size > 40 ? 2 : 1.5}px solid rgba(108,92,231,0.45)`, overflow: "hidden", boxShadow: size > 40 ? "0 0 20px rgba(108,92,231,0.3)" : "none" }}>
-      {src ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : emoji}
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+      border: `${size > 40 ? 2 : 1.5}px solid rgba(108,92,231,0.5)`,
+      boxShadow: size > 40 ? "0 0 20px rgba(108,92,231,0.3),inset 0 0 12px rgba(108,92,231,0.15)" : "none",
+      background: "linear-gradient(135deg,#1a0a3e 0%,#3d1e7a 45%,#6c5ce7 100%)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: size * 0.44, position: "relative",
+    }}>
+      <span style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))", lineHeight: 1 }}>{emoji}</span>
+      {/* subtle shimmer ring */}
+      <div style={{ position: "absolute", inset: -1, borderRadius: "50%", border: "1px solid rgba(196,181,253,0.2)", pointerEvents: "none" }} />
     </div>
   );
+}
+
+function CharAvatar({ src, emoji, size }: { src: string | null; emoji: string; size: number }) {
+  if (src) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden", border: `${size > 40 ? 2 : 1.5}px solid rgba(108,92,231,0.45)`, boxShadow: size > 40 ? "0 0 20px rgba(108,92,231,0.3)" : "none" }}>
+        <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; (e.currentTarget.parentElement?.nextSibling as HTMLElement | null)?.removeAttribute("style"); }}
+        />
+      </div>
+    );
+  }
+  return <CharAvatarPlaceholder emoji={emoji} size={size} />;
 }
 function UserAvatar({ src, size }: { src: string | null; size: number }) {
   return (
@@ -912,17 +904,18 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
   const handleCharAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     try {
-      const normalizedFile = await normalizeImageFile(file);
       const { updateCharacterAvatar } = await import("@/lib/firebase");
-      const url = await updateCharacterAvatar(character.id, normalizedFile);
-      /* Also cache normalized base64 in localStorage for offline/fallback */
-      const b64 = await normalizeImageBase64(file);
-      localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
-      setCharAvatarUrl(url);
-    } catch {
-      const b64 = await normalizeImageBase64(file);
+      const b64 = await updateCharacterAvatar(character.id, file);
       localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
       setCharAvatarUrl(b64);
+    } catch {
+      /* Fallback: compress locally and cache */
+      const { compressImageToBase64 } = await import("@/lib/firebase");
+      const b64 = await compressImageToBase64(file);
+      if (b64) {
+        localStorage.setItem(`kismet_char_avatar_${character.id}`, b64);
+        setCharAvatarUrl(b64);
+      }
     }
     e.target.value = "";
   };
@@ -989,7 +982,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
       </div>
 
       {/* ══ MESSAGES ══ */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 6px", display: "flex", flexDirection: "column", gap: 8 }}>
         {(loading || keysLoading) && (
           <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(167,139,250,0.5)" }}>
             <Loader2 style={{ width: 22, height: 22, margin: "0 auto 8px", animation: "spin 1s linear infinite" }} />
@@ -1023,7 +1016,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
                 ? <button onClick={() => { setProfileDraft(profile); setUserAvatarDraft(userAvatarUrl); setShowProfile(true); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><UserAvatar src={userAvatarUrl} size={32} /></button>
                 : <button onClick={() => setShowCharProfile(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}><CharAvatar src={charAvatarUrl} emoji={character.avatar} size={32} /></button>
               }
-              <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
+              <div style={{ maxWidth: "88%", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
                 <div style={{ padding: "10px 14px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: isUser ? "linear-gradient(135deg,#7c3aed,#6c5ce7)" : "rgba(28,26,44,0.98)", fontSize: 14, lineHeight: 1.7, boxShadow: isUser ? "0 4px 12px rgba(108,92,231,0.35)" : "0 2px 8px rgba(0,0,0,0.4)", border: isUser ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.06)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {isUser ? msg.content : renderNovel(msg.content)}
                 </div>
