@@ -441,19 +441,23 @@ interface Props {
   character: Character;
   onClose: () => void;
   onChat: () => void;
+  onEdit?: () => void;
   creatorName?: string;
   viewerEmail?: string;   /* email/uid của người đang xem — để tính quyền */
+  onViewCreator?: () => void;
 }
 
-export default function CharacterProfile({ character, onClose, onChat, creatorName = "KISMET", viewerEmail }: Props) {
+export default function CharacterProfile({ character, onClose, onChat, onEdit, creatorName = "KISMET", viewerEmail, onViewCreator }: Props) {
   const avatarSrc = localStorage.getItem(`kismet_char_avatar_${character.id}`);
   const code = encodeCharacter(character);
 
   /* Xác định quyền: chủ sở hữu = người tạo hoặc admin */
+  /* viewerEmail có thể là uid hoặc email — so sánh cả hai */
   const isOwner = !!viewerEmail && (
     viewerEmail === character.createdBy ||
     viewerEmail === ADMIN_EMAIL
   );
+  /* Note: viewerEmail được pass là uid (ưu tiên) hoặc email từ AllTab */
 
   const [shareMode, setShareMode] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
@@ -513,7 +517,23 @@ export default function CharacterProfile({ character, onClose, onChat, creatorNa
           <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginTop: 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
             {character.name}
           </h2>
-          <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)", marginBottom: 10 }}>Tạo bởi {creatorName}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: "rgba(167,139,250,0.4)" }}>Tạo bởi</span>
+            {onViewCreator ? (
+              <button onClick={onViewCreator} style={{ all: "unset", cursor: "pointer", fontSize: 11, fontWeight: 700, color: "#a78bfa", textDecoration: "underline", textDecorationColor: "rgba(167,139,250,0.3)", textUnderlineOffset: "2px", transition: "color 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#c4b5fd")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#a78bfa")}>
+                {creatorName}
+              </button>
+            ) : (
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(167,139,250,0.55)" }}>{creatorName}</span>
+            )}
+            {isOwner && onEdit && (
+              <button onClick={onEdit} style={{ all: "unset", cursor: "pointer", marginLeft: 4, fontSize: 10, fontWeight: 700, padding: "2px 10px", borderRadius: 10, background: "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.35)", color: "#a78bfa", letterSpacing: "0.04em" }}>
+                Chỉnh sửa
+              </button>
+            )}
+          </div>
 
           <div style={{ padding: "7px 20px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.28)", marginBottom: 16, maxWidth: "88%", textAlign: "center" }}>
             <p style={{ color: "#c4b5fd", fontSize: 13, fontStyle: "italic", lineHeight: 1.5 }}>"{character.slogan}"</p>

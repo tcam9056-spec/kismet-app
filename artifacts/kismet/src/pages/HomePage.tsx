@@ -12,6 +12,7 @@ import { useCharacters } from "@/hooks/useCharacters";
 import type { Character } from "@/lib/types";
 import { ADMIN_EMAIL } from "@/lib/types";
 import CharacterProfile from "./CharacterProfile";
+import { fetchCreatorDisplayNames } from "@/hooks/useUserProfile";
 
 type Tab = "all" | "messages" | "profile";
 
@@ -19,6 +20,7 @@ interface Props {
   onChat: (character: Character) => void;
   onSettings: () => void;
   onAddCharacter: () => void;
+  onViewUser: (uid: string) => void;
 }
 
 /* ── helpers ── */
@@ -354,14 +356,23 @@ function ImportModal({ onClose, onImported, onChat }: {
 /* ══════════════════════════════════════════════
    TAB: ALL — Forum/Feed style character cards
 ══════════════════════════════════════════════ */
-function AllTab({ onChat, onAddCharacter }: { onChat: (c: Character) => void; onAddCharacter: () => void }) {
+function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character) => void; onAddCharacter: () => void; onViewUser: (uid: string) => void }) {
   const { characters, loading } = useCharacters();
   const { user } = useAuth();
-  const viewerEmail = user?.email || user?.uid || "";
+  /* Use uid as primary identifier so isOwner check in CharacterProfile works correctly */
+  const viewerEmail = user?.uid || user?.email || "";
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
   const [query, setQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [creatorNames, setCreatorNames] = useState<Map<string, string>>(new Map());
   const handleImported = useCallback((name: string) => { setShowImport(false); }, []);
+
+  /* Fetch creator display names whenever characters change */
+  useEffect(() => {
+    if (characters.length === 0) return;
+    const uids = characters.map(c => c.createdBy).filter(Boolean);
+    fetchCreatorDisplayNames(uids).then(map => setCreatorNames(map));
+  }, [characters]);
 
   const filtered = query.trim()
     ? characters.filter(c => c.name.toLowerCase().includes(query.toLowerCase()) || c.slogan.toLowerCase().includes(query.toLowerCase()))
@@ -460,7 +471,14 @@ function AllTab({ onChat, onAddCharacter }: { onChat: (c: Character) => void; on
       )}
 
       {selectedChar && (
-        <CharacterProfile character={selectedChar} onClose={() => setSelectedChar(null)} onChat={() => { onChat(selectedChar); setSelectedChar(null); }} viewerEmail={viewerEmail} />
+        <CharacterProfile
+          character={selectedChar}
+          onClose={() => setSelectedChar(null)}
+          onChat={() => { onChat(selectedChar); setSelectedChar(null); }}
+          viewerEmail={viewerEmail}
+          creatorName={creatorNames.get(selectedChar.createdBy) || selectedChar.createdBy?.slice(0, 8) || "KISMET"}
+          onViewCreator={selectedChar.createdBy ? () => { setSelectedChar(null); onViewUser(selectedChar.createdBy); } : undefined}
+        />
       )}
 
       {showImport && (
@@ -607,9 +625,9 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
 /* ══════════════════════════════════════════════
    TAB: PROFILE
 ══════════════════════════════════════════════ */
-interface ProfileData { gender: string; personality: string; bio: string; appearance: string; displayName: string; }
+interface ProfileData { gender: string; personality: string; bio: string; appearance: string; displayName: string; socialLinks?: { label: string; url: string }[]; avatarDataUrl?: string; }
 
-function ProfileTab({ onSettings, onAddCharacter }: { onSettings: () => void; onAddCharacter: () => void }) {
+function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: () => void; onAddCharacter: () => void; onViewMyPage?: () => void }) {
   const { user, logout } = useAuth();
   const { pending, isAdmin } = useCharacters();
   const email = user?.email || user?.uid || "";
@@ -618,7 +636,7 @@ function ProfileTab({ onSettings, onAddCharacter }: { onSettings: () => void; on
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarDraft, setAvatarDraft] = useState<string | null>(null);
-  const [draft, setDraft] = useState<ProfileData>({ gender: "", personality: "", bio: "", appearance: "", displayName: "" });
+  const [draft, setDraft] = useState<ProfileData>({ gender: "", personality: "", bio: "", appearance: "", displayName: "", socialLinks: [] });
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -663,12 +681,16 @@ function ProfileTab({ onSettings, onAddCharacter }: { onSettings: () => void; on
         else { localStorage.removeItem(`avatar_${email}`); setAvatarUrl(null); }
       }
       const ref = doc(db, "users", user.uid, "profile", "data");
-      await setDoc(ref, { ...draft, updatedAt: serverTimestamp() }, { merge: true });
-      localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(draft));
+      const saveData: ProfileData = { ...draft };
+      if (avatarDraft) saveData.avatarDataUrl = avatarDraft;
+      await setDoc(ref, { ...saveData, updatedAt: serverTimestamp() }, { merge: true });
+      localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(saveData));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(draft));
+      const saveData: ProfileData = { ...draft };
+      if (avatarDraft) saveData.avatarDataUrl = avatarDraft;
+      localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(saveData));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
@@ -723,8 +745,15 @@ function ProfileTab({ onSettings, onAddCharacter }: { onSettings: () => void; on
           {draft.displayName || email.split("@")[0]}
         </p>
         <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)" }}>{email}</p>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6, padding: "2px 10px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)" }}>
-          <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 600 }}>✦ Hồ sơ lưu cloud · Đồng bộ đa thiết bị</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 10px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)" }}>
+            <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 600 }}>✦ Hồ sơ lưu cloud · Đồng bộ đa thiết bị</span>
+          </div>
+          {onViewMyPage && (
+            <button onClick={onViewMyPage} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 12px", borderRadius: 20, background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)", color: "#d4af37", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+              ✦ Xem trang cá nhân
+            </button>
+          )}
         </div>
       </div>
 
@@ -761,6 +790,30 @@ function ProfileTab({ onSettings, onAddCharacter }: { onSettings: () => void; on
               onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
           </div>
         ))}
+
+        {/* Social links */}
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(196,181,253,0.7)", display: "block", marginBottom: 7 }}>Liên kết mạng xã hội</label>
+          {[0, 1, 2].map(i => {
+            const link = draft.socialLinks?.[i] || { label: "", url: "" };
+            const update = (field: "label" | "url", val: string) => {
+              setDraft(p => {
+                const links = [...(p.socialLinks || [{ label: "", url: "" }, { label: "", url: "" }, { label: "", url: "" }])];
+                while (links.length < 3) links.push({ label: "", url: "" });
+                links[i] = { ...links[i], [field]: val };
+                return { ...p, socialLinks: links.filter(l => l.label || l.url) };
+              });
+            };
+            return (
+              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 7 }}>
+                <input type="text" value={link.label} onChange={e => update("label", e.target.value)} placeholder="Nhãn (Instagram...)" style={{ ...iStyle, width: "38%", flexShrink: 0, fontSize: 12 }}
+                  onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
+                <input type="text" value={link.url} onChange={e => update("url", e.target.value)} placeholder="https://..." style={{ ...iStyle, fontSize: 12 }}
+                  onFocus={e => (e.target.style.borderColor = "rgba(108,92,231,0.6)")} onBlur={e => (e.target.style.borderColor = "rgba(108,92,231,0.2)")} />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <button onClick={handleSave} disabled={saving}
@@ -788,7 +841,7 @@ function ProfileTab({ onSettings, onAddCharacter }: { onSettings: () => void; on
 /* ══════════════════════════════════════════════
    MAIN HOME PAGE
 ══════════════════════════════════════════════ */
-export default function HomePage({ onChat, onSettings, onAddCharacter }: Props) {
+export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUser }: Props) {
   const { user } = useAuth();
   const { isAdmin, pending } = useCharacters();
   const email = user?.email || user?.uid || "";
@@ -837,9 +890,9 @@ export default function HomePage({ onChat, onSettings, onAddCharacter }: Props) 
       {/* ── TAB CONTENT ── */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ maxWidth: 500, margin: "0 auto" }}>
-          {tab === "all" && <AllTab onChat={onChat} onAddCharacter={onAddCharacter} />}
+          {tab === "all" && <AllTab onChat={onChat} onAddCharacter={onAddCharacter} onViewUser={onViewUser} />}
           {tab === "messages" && <MessagesTab onChat={onChat} />}
-          {tab === "profile" && <ProfileTab onSettings={onSettings} onAddCharacter={onAddCharacter} />}
+          {tab === "profile" && <ProfileTab onSettings={onSettings} onAddCharacter={onAddCharacter} onViewMyPage={user ? () => onViewUser(user.uid) : undefined} />}
         </div>
       </div>
 

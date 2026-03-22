@@ -20,6 +20,16 @@ Full-stack AI character chat app with:
 - Stored in Firestore `characters` collection with `isPublic` flag
 - Default characters seeded on first login
 - Users can create custom characters (private)
+- `createdBy` = user UID (Firebase). Ownership check compares uid, not email.
+- Character privacy: Only owner sees "Linh Hồn & Thế Giới" section + Edit button; others see only Ngoại hình & Tính cách.
+
+### Social / Creator Features
+- **Creator ID**: "Tạo bởi {creatorName}" in CharacterProfile is a clickable hyperlink navigating to creator's UserPage.
+- **UserPage** (`/src/pages/UserPage.tsx`): FB-style page with cover, circular avatar, bio, social links, 1:1 character card grid, 1:1 QR code for sharing.
+- **User profiles** stored in `users/{uid}/profile/data` (Firestore); includes `displayName`, `bio`, `avatarDataUrl`, `socialLinks`.
+- **Creator names** resolved in `AllTab` via `fetchCreatorDisplayNames()` hook.
+- **Memory (Khắc ghi Ký ức)**: 0/20 slots per character in ChatPage (+) menu — untouched.
+- **QR cards**: Both Tarot card QR and profile QR are 1:1 square ratio.
 
 ### Chat
 - Messages stored in `chats/{uid}_{characterId}/messages`
