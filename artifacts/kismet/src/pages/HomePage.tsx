@@ -356,6 +356,8 @@ function ImportModal({ onClose, onImported, onChat }: {
 ══════════════════════════════════════════════ */
 function AllTab({ onChat, onAddCharacter }: { onChat: (c: Character) => void; onAddCharacter: () => void }) {
   const { characters, loading } = useCharacters();
+  const { user } = useAuth();
+  const viewerEmail = user?.email || user?.uid || "";
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
   const [query, setQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
@@ -458,7 +460,7 @@ function AllTab({ onChat, onAddCharacter }: { onChat: (c: Character) => void; on
       )}
 
       {selectedChar && (
-        <CharacterProfile character={selectedChar} onClose={() => setSelectedChar(null)} onChat={() => { onChat(selectedChar); setSelectedChar(null); }} />
+        <CharacterProfile character={selectedChar} onClose={() => setSelectedChar(null)} onChat={() => { onChat(selectedChar); setSelectedChar(null); }} viewerEmail={viewerEmail} />
       )}
 
       {showImport && (

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ArrowLeft, Send, Trash2, X, Loader2, Camera, Plus,
-  Phone, Gift, Heart, ChevronLeft, Shield, ShieldOff, CheckCircle2, MapPin
+  Phone, Gift, Heart, ChevronLeft, Shield, ShieldOff, CheckCircle2, MapPin, Lock
 } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { useKeys } from "@/hooks/useKeys";
 import { useAuth } from "@/contexts/AuthContext";
 import { geminiRaw } from "@/lib/gemini";
 import type { Character, GeminiModel } from "@/lib/types";
+import { ADMIN_EMAIL } from "@/lib/types";
 
 /* ═══════════════════════════════════════════════════
    TYPES
@@ -158,11 +159,16 @@ function UserAvatar({ src, size }: { src: string | null; size: number }) {
 /* ═══════════════════════════════════════════════════
    A. CHARACTER PROFILE MODAL
 ═══════════════════════════════════════════════════ */
-function CharProfileModal({ character, charAvatarUrl, onClose }: { character: Character; charAvatarUrl: string | null; onClose: () => void }) {
+function CharProfileModal({ character, charAvatarUrl, isOwner, onClose }: {
+  character: Character; charAvatarUrl: string | null; isOwner: boolean; onClose: () => void;
+}) {
+  const { appearance, traits, background } = parsePersonalitySections(character.personality);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300, backdropFilter: "blur(12px)" }} onClick={onClose}>
       <div style={{ background: "linear-gradient(180deg,#1c1a2e,#0f0d1a)", border: "1px solid rgba(108,92,231,0.25)", borderTopLeftRadius: 28, borderTopRightRadius: 28, width: "100%", maxWidth: 480, maxHeight: "88dvh", overflowY: "auto", paddingBottom: 40 }} onClick={e => e.stopPropagation()}>
-        {/* Header: avatar + name + close — no empty banner */}
+
+        {/* Header */}
         <div style={{ padding: "22px 20px 16px", display: "flex", alignItems: "center", gap: 16, borderBottom: "1px solid rgba(108,92,231,0.12)" }}>
           <CharAvatar src={charAvatarUrl} emoji={character.avatar} size={68} />
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -177,36 +183,106 @@ function CharProfileModal({ character, charAvatarUrl, onClose }: { character: Ch
           </button>
         </div>
 
-        {/* Info sections — chỉ hiện Ngoại hình & Tính cách, ẩn system prompt */}
-        <div style={{ padding: "18px 20px 0" }}>
-          {(() => {
-            const { appearance, traits } = parsePersonalitySections(character.personality);
-            const hasParsed = appearance || traits;
-            const sections: { label: string; value: string; icon: string }[] = [];
-            if (hasParsed) {
-              if (appearance) sections.push({ icon: "✨", label: "Ngoại hình", value: appearance });
-              if (traits)     sections.push({ icon: "🔮", label: "Tính cách", value: traits });
-            } else {
-              /* Nhân vật cũ không có sections — hiện ngắn gọn, không raw system prompt */
-              const bio = character.personality
-                .replace(/\[[\w\s]+\]/g, "")       /* bỏ [THÔNG TIN...] */
-                .replace(/━+[^━]*━+/g, "")          /* bỏ separator headers */
-                .replace(/\(AI phải[^)]*\)/gi, "")
-                .replace(/\n{3,}/g, "\n\n")
-                .trim()
-                .slice(0, 400);
-              if (bio) sections.push({ icon: "✦", label: "Hồ sơ nhân vật", value: bio + (character.personality.length > 400 ? "…" : "") });
-            }
-            if (character.curse) sections.push({ icon: "⚡", label: "Lời nguyền", value: character.curse });
-            return sections.map(({ icon, label, value }) => (
-              <div key={label} style={{ marginBottom: 14, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)" }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{icon} {label}</p>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{value}</p>
+        <div style={{ padding: "16px 18px 0" }}>
+
+          {/* ── Chủ sở hữu: badge + background section ── */}
+          {isOwner && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", marginBottom: 10 }}>
+                <Lock size={9} style={{ color: "#34d399" }} />
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: "#34d399", letterSpacing: "0.05em" }}>Chế độ Sáng tạo — Toàn quyền truy cập</span>
               </div>
-            ));
+              {background.length > 0 && (
+                <div style={{ padding: "12px 14px", borderRadius: 14, background: "rgba(52,211,153,0.04)", border: "1px solid rgba(52,211,153,0.13)", marginBottom: 10 }}>
+                  <p style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(52,211,153,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Lock size={8} /> Linh Hồn &amp; Thế Giới — Riêng tư
+                  </p>
+                  <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.68, whiteSpace: "pre-line" }}>{background}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Ngoại hình — glassmorphism vàng ── */}
+          {appearance.length > 0 && (
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <div style={{ position: "absolute", inset: -10, borderRadius: 22, background: "radial-gradient(ellipse at 50% 50%, rgba(212,175,55,0.2) 0%, transparent 72%)", pointerEvents: "none", zIndex: 0 }} />
+              <div style={{ position: "absolute", inset: -1.5, borderRadius: 18, background: "linear-gradient(135deg, rgba(212,175,55,0.55) 0%, rgba(196,181,253,0.2) 50%, rgba(212,175,55,0.55) 100%)", zIndex: 0 }} />
+              <div style={{ position: "relative", zIndex: 1, padding: "15px 16px", borderRadius: 17, background: "linear-gradient(155deg, rgba(28,20,54,0.96), rgba(14,9,28,0.98))", backdropFilter: "blur(14px)", overflow: "hidden" }}>
+                {/* Sparkles */}
+                <div style={{ position: "absolute", inset: 0, borderRadius: 17, pointerEvents: "none" }}>
+                  {[{t:"10%",l:"7%",sz:2.5,d:"0s",c:"#f0d060"},{t:"80%",l:"13%",sz:2,d:"0.8s",c:"#d4af37"},{t:"18%",l:"90%",sz:2.5,d:"1.4s",c:"#fff8a0"},{t:"65%",l:"86%",sz:2,d:"0.5s",c:"#f0d060"},{t:"90%",l:"55%",sz:1.5,d:"2s",c:"#d4af37"}].map((s,i) => (
+                    <div key={i} style={{ position:"absolute", top:s.t, left:s.l, width:s.sz, height:s.sz, borderRadius:"50%", background:s.c, boxShadow:`0 0 ${s.sz*4}px ${s.c}`, animation:`profileSparkle 2.5s ease-in-out ${s.d} infinite` }} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 15 }}>✨</span>
+                  <p style={{ fontSize: 10.5, fontWeight: 800, color: "#d4af37", textTransform: "uppercase", letterSpacing: "0.09em" }}>Ngoại Hình</p>
+                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(212,175,55,0.35), transparent)" }} />
+                </div>
+                <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.86)", lineHeight: 1.82, whiteSpace: "pre-line", fontStyle: "italic" }}>{appearance}</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Tính cách — glassmorphism tím ── */}
+          {traits.length > 0 && (
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <div style={{ position: "absolute", inset: -10, borderRadius: 22, background: "radial-gradient(ellipse at 50% 50%, rgba(147,51,234,0.22) 0%, transparent 72%)", pointerEvents: "none", zIndex: 0 }} />
+              <div style={{ position: "absolute", inset: -1.5, borderRadius: 18, background: "linear-gradient(135deg, rgba(167,139,250,0.5) 0%, rgba(212,175,55,0.2) 50%, rgba(147,51,234,0.5) 100%)", zIndex: 0 }} />
+              <div style={{ position: "relative", zIndex: 1, padding: "15px 16px", borderRadius: 17, background: "linear-gradient(155deg, rgba(22,12,50,0.97), rgba(10,6,26,0.99))", backdropFilter: "blur(14px)", overflow: "hidden" }}>
+                {/* Sparkles */}
+                <div style={{ position: "absolute", inset: 0, borderRadius: 17, pointerEvents: "none" }}>
+                  {[{t:"12%",l:"90%",sz:2.5,d:"0.3s",c:"#c4b5fd"},{t:"75%",l:"5%",sz:2,d:"1.2s",c:"#a78bfa"},{t:"40%",l:"92%",sz:2,d:"2.1s",c:"#d4af37"},{t:"88%",l:"72%",sz:2,d:"0.7s",c:"#c4b5fd"},{t:"5%",l:"55%",sz:1.5,d:"1.7s",c:"#a78bfa"}].map((s,i) => (
+                    <div key={i} style={{ position:"absolute", top:s.t, left:s.l, width:s.sz, height:s.sz, borderRadius:"50%", background:s.c, boxShadow:`0 0 ${s.sz*4}px ${s.c}`, animation:`profileSparkle 2.8s ease-in-out ${s.d} infinite` }} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 15 }}>🔮</span>
+                  <p style={{ fontSize: 10.5, fontWeight: 800, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.09em" }}>Tính Cách</p>
+                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(167,139,250,0.35), transparent)" }} />
+                </div>
+                <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.86)", lineHeight: 1.82, whiteSpace: "pre-line", fontStyle: "italic" }}>{traits}</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Fallback nhân vật cũ ── */}
+          {!appearance && !traits && !background && (() => {
+            const bio = character.personality
+              .replace(/\[[\w\s]+\]/g, "").replace(/━+[^━]*━+/g, "")
+              .replace(/\(AI phải[^)]*\)/gi, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 400);
+            return bio ? (
+              <div style={{ marginBottom: 12, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)" }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>✦ Hồ sơ nhân vật</p>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{bio}{character.personality.length > 400 ? "…" : ""}</p>
+              </div>
+            ) : null;
           })()}
+
+          {/* ── Lời nguyền ── */}
+          {character.curse && (
+            <div style={{ marginBottom: 12, padding: "14px 16px", borderRadius: 14, background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)" }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(239,68,68,0.55)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>⚡ Lời nguyền</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{character.curse}</p>
+            </div>
+          )}
+
+          {/* ── Privacy notice cho viewer ── */}
+          {!isOwner && character.isPublic && (appearance || traits) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 10, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.04)", marginBottom: 4 }}>
+              <Lock size={10} style={{ color: "rgba(167,139,250,0.3)", flexShrink: 0 }} />
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", lineHeight: 1.5 }}>Thông tin vận hành bị ẩn bởi người tạo</p>
+            </div>
+          )}
         </div>
       </div>
+      <style>{`
+        @keyframes profileSparkle {
+          0%,100% { opacity:0.12; transform:scale(0.6); }
+          50%      { opacity:1;   transform:scale(1.7); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -672,6 +748,12 @@ export default function ChatPage({ character, onBack }: Props) {
   const { keys, selectedModel, loading: keysLoading } = useKeys();
   const [safeMode, setSafeMode] = useState(true);
 
+  /* Quyền chủ sở hữu */
+  const viewerEmail = user?.email || user?.uid || "";
+  const isOwner = !!viewerEmail && (
+    viewerEmail === character.createdBy || viewerEmail === ADMIN_EMAIL
+  );
+
   /* ── Memories — load & live-sync ── */
   const [memories, setMemories] = useState<string[]>([]);
   useEffect(() => {
@@ -1060,7 +1142,7 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
       )}
 
       {/* ══ CHARACTER PROFILE MODAL ══ */}
-      {showCharProfile && <CharProfileModal character={character} charAvatarUrl={charAvatarUrl} onClose={() => setShowCharProfile(false)} />}
+      {showCharProfile && <CharProfileModal character={character} charAvatarUrl={charAvatarUrl} isOwner={isOwner} onClose={() => setShowCharProfile(false)} />}
 
       {/* ══ PHONE MODAL ══ */}
       {showPhone && <PhoneModal character={character} charAvatarUrl={charAvatarUrl} keys={keys} model={selectedModel} onClose={() => setShowPhone(false)} />}
