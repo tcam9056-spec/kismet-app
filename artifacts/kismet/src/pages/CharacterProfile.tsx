@@ -44,132 +44,175 @@ async function loadImg(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-/* ══════════════════════════════════════
-   TAROT CARD — SHARE CARD GENERATOR
-══════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   MEMORY SHARD — SPARKLE SHARE CARD GENERATOR
+   Phong cách: Bí ẩn · Lấp lánh · Mảnh ký ức
+══════════════════════════════════════════════════ */
 async function generateShareCard(char: Character, avatarSrc: string | null, creatorName: string, code: string): Promise<string> {
-  const W = 400, H = 680;
+  const W = 420, H = 580;
   const canvas = document.createElement("canvas");
-  canvas.width = W * 2; canvas.height = H * 2; // 2x for retina
+  canvas.width = W * 2; canvas.height = H * 2;
   const ctx = canvas.getContext("2d")!;
   ctx.scale(2, 2);
 
-  /* ── 1. Deep space background ── */
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, "#04020f");
-  bgGrad.addColorStop(0.4, "#0d0520");
-  bgGrad.addColorStop(0.75, "#130a30");
-  bgGrad.addColorStop(1, "#080410");
+  /* ── 1. Nền vũ trụ sâu ── */
+  const bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.35, 0, W * 0.5, H * 0.35, W * 0.9);
+  bgGrad.addColorStop(0, "#130830");
+  bgGrad.addColorStop(0.55, "#080420");
+  bgGrad.addColorStop(1, "#030210");
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  /* ── 2. Nebula / cosmic mist overlays ── */
+  /* Nebula mist overlays */
   const nebulas = [
-    { x: W * 0.5, y: H * 0.22, r: 200, c0: "rgba(108,92,231,0.22)", c1: "transparent" },
-    { x: W * 0.15, y: H * 0.6,  r: 150, c0: "rgba(147,51,234,0.14)", c1: "transparent" },
-    { x: W * 0.85, y: H * 0.45, r: 130, c0: "rgba(212,175,55,0.10)", c1: "transparent" },
-    { x: W * 0.5,  y: H * 0.85, r: 180, c0: "rgba(79,70,229,0.18)",  c1: "transparent" },
+    { x: W * 0.5,  y: H * 0.25, r: 220, c: "rgba(108,92,231,0.20)" },
+    { x: W * 0.15, y: H * 0.5,  r: 160, c: "rgba(147,51,234,0.12)" },
+    { x: W * 0.88, y: H * 0.42, r: 140, c: "rgba(212,175,55,0.09)" },
+    { x: W * 0.5,  y: H * 0.82, r: 200, c: "rgba(79,70,229,0.16)"  },
+    { x: W * 0.28, y: H * 0.12, r: 120, c: "rgba(167,139,250,0.10)" },
   ];
-  nebulas.forEach(({ x, y, r, c0, c1 }) => {
+  nebulas.forEach(({ x, y, r, c }) => {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, c0); g.addColorStop(1, c1);
+    g.addColorStop(0, c); g.addColorStop(1, "transparent");
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   });
 
-  /* ── 3. Stars ── */
-  const rng = (seed: number) => { let s = seed; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; };
-  const rand = rng(42);
-  for (let i = 0; i < 120; i++) {
-    const sx = rand() * W, sy = rand() * H;
-    const sr = 0.4 + rand() * 1.1;
-    const alpha = 0.25 + rand() * 0.65;
-    const hue = rand() > 0.7 ? `rgba(200,180,255,${alpha})` : `rgba(255,255,255,${alpha})`;
-    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-    ctx.fillStyle = hue; ctx.fill();
+  /* ── 2. Glassmorphism panel chính ── */
+  const panelM = 14;
+  rr(ctx, panelM, panelM, W - panelM * 2, H - panelM * 2, 22);
+  ctx.fillStyle = "rgba(255,255,255,0.030)";
+  ctx.fill();
+  /* Highlight phía trên panel */
+  const highlight = ctx.createLinearGradient(panelM, panelM, panelM, panelM + 60);
+  highlight.addColorStop(0, "rgba(255,255,255,0.06)");
+  highlight.addColorStop(1, "transparent");
+  rr(ctx, panelM, panelM, W - panelM * 2, H - panelM * 2, 22);
+  ctx.fillStyle = highlight; ctx.fill();
+  /* Viền glass */
+  rr(ctx, panelM, panelM, W - panelM * 2, H - panelM * 2, 22);
+  const glassStroke = ctx.createLinearGradient(panelM, panelM, W - panelM, H - panelM);
+  glassStroke.addColorStop(0, "rgba(212,175,55,0.45)");
+  glassStroke.addColorStop(0.35, "rgba(167,139,250,0.30)");
+  glassStroke.addColorStop(0.65, "rgba(108,92,231,0.35)");
+  glassStroke.addColorStop(1, "rgba(212,175,55,0.40)");
+  ctx.strokeStyle = glassStroke; ctx.lineWidth = 1.2; ctx.stroke();
+
+  /* ── 3. Hạt lấp lánh (sparkle) ── */
+  const rand = (() => { let s = 73; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })();
+  const sparkleColors = ["rgba(255,255,255,A)", "rgba(212,175,55,A)", "rgba(200,180,255,A)", "rgba(167,139,250,A)"];
+  for (let i = 0; i < 60; i++) {
+    const sx = panelM + rand() * (W - panelM * 2);
+    const sy = panelM + rand() * (H - panelM * 2);
+    const size = 0.5 + rand() * 2.2;
+    const alpha = (0.2 + rand() * 0.7).toFixed(2);
+    const color = sparkleColors[Math.floor(rand() * 4)].replace("A", alpha);
+    ctx.fillStyle = color;
+    if (rand() > 0.55) {
+      /* Chấm tròn */
+      ctx.beginPath(); ctx.arc(sx, sy, size * 0.7, 0, Math.PI * 2); ctx.fill();
+    } else {
+      /* Hình chéo nhỏ (cross/diamond) */
+      const s2 = size * 1.4;
+      ctx.fillRect(sx - s2 * 0.12, sy - s2, s2 * 0.24, s2 * 2);
+      ctx.fillRect(sx - s2, sy - s2 * 0.12, s2 * 2, s2 * 0.24);
+    }
   }
 
-  /* ── 4. Avatar — misty blurred background ── */
-  const avatarCX = W / 2, avatarCY = 178, avatarR = 58;
+  /* ── 4. KISMET header ── */
+  ctx.font = "bold 10px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  const headerGrad = ctx.createLinearGradient(W / 2 - 60, 0, W / 2 + 60, 0);
+  headerGrad.addColorStop(0, "#d4af37"); headerGrad.addColorStop(0.5, "#f0d060"); headerGrad.addColorStop(1, "#d4af37");
+  ctx.fillStyle = headerGrad;
+  ctx.globalAlpha = 0.92;
+  ctx.fillText("✦   K I S M E T   ✦", W / 2, 36);
+  ctx.globalAlpha = 1;
+
+  /* Thin glow line below header */
+  {
+    const ly = 44;
+    const lg = ctx.createLinearGradient(50, ly, W - 50, ly);
+    lg.addColorStop(0, "transparent"); lg.addColorStop(0.4, "rgba(212,175,55,0.55)"); lg.addColorStop(0.6, "rgba(167,139,250,0.45)"); lg.addColorStop(1, "transparent");
+    ctx.strokeStyle = lg; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(50, ly); ctx.lineTo(W - 50, ly); ctx.stroke();
+  }
+
+  /* ── 5. Avatar — ghost blur + sharp circle ── */
+  const avatarCX = W / 2, avatarCY = 148, avatarR = 56;
+
+  /* Ghost / aura blur */
   if (avatarSrc) {
     const img = await loadImg(avatarSrc);
     if (img) {
       ctx.save();
-      ctx.filter = "blur(28px)";
-      ctx.globalAlpha = 0.28;
-      ctx.drawImage(img, avatarCX - 120, avatarCY - 120, 240, 240);
+      ctx.filter = "blur(32px)";
+      ctx.globalAlpha = 0.22;
+      ctx.drawImage(img, avatarCX - 130, avatarCY - 130, 260, 260);
       ctx.restore();
     }
   }
 
-  /* ── 5. Avatar glow rings ── */
-  [{ r: avatarR + 22, a: 0.08 }, { r: avatarR + 12, a: 0.15 }, { r: avatarR + 4, a: 0.28 }].forEach(({ r, a }) => {
-    const g = ctx.createRadialGradient(avatarCX, avatarCY, r - 10, avatarCX, avatarCY, r + 10);
-    g.addColorStop(0, `rgba(108,92,231,${a})`); g.addColorStop(0.5, `rgba(212,175,55,${a * 0.6})`); g.addColorStop(1, "transparent");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(avatarCX, avatarCY, r + 12, 0, Math.PI * 2); ctx.fill();
+  /* Glow rings (outer → inner) */
+  const glowRings = [
+    { r: avatarR + 30, a: 0.06, c1: "108,92,231", c2: "212,175,55" },
+    { r: avatarR + 16, a: 0.14, c1: "108,92,231", c2: "212,175,55" },
+    { r: avatarR + 5,  a: 0.30, c1: "147,51,234", c2: "212,175,55" },
+  ];
+  glowRings.forEach(({ r, a, c1, c2 }) => {
+    const g = ctx.createRadialGradient(avatarCX, avatarCY, r - 14, avatarCX, avatarCY, r + 14);
+    g.addColorStop(0, `rgba(${c1},${a})`); g.addColorStop(0.5, `rgba(${c2},${a * 0.5})`); g.addColorStop(1, "transparent");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(avatarCX, avatarCY, r + 16, 0, Math.PI * 2); ctx.fill();
   });
 
-  /* ── 6. Avatar circle ── */
+  /* Avatar circle */
   ctx.save();
   ctx.beginPath(); ctx.arc(avatarCX, avatarCY, avatarR, 0, Math.PI * 2); ctx.clip();
   if (avatarSrc) {
     const img = await loadImg(avatarSrc);
     if (img) ctx.drawImage(img, avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
-    else { ctx.fillStyle = "#1a0a3e"; ctx.fillRect(avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2); }
+    else {
+      const fg = ctx.createLinearGradient(avatarCX - avatarR, avatarCY - avatarR, avatarCX + avatarR, avatarCY + avatarR);
+      fg.addColorStop(0, "#1a0a3e"); fg.addColorStop(1, "#6c5ce7");
+      ctx.fillStyle = fg; ctx.fillRect(avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
+    }
   } else {
-    const grad = ctx.createLinearGradient(avatarCX - avatarR, avatarCY - avatarR, avatarCX + avatarR, avatarCY + avatarR);
-    grad.addColorStop(0, "#1a0a3e"); grad.addColorStop(1, "#6c5ce7");
-    ctx.fillStyle = grad; ctx.fillRect(avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
+    const fg = ctx.createLinearGradient(avatarCX - avatarR, avatarCY - avatarR, avatarCX + avatarR, avatarCY + avatarR);
+    fg.addColorStop(0, "#1a0a3e"); fg.addColorStop(1, "#6c5ce7");
+    ctx.fillStyle = fg; ctx.fillRect(avatarCX - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
     ctx.restore();
-    ctx.font = `${avatarR * 1.1}px serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `${avatarR}px serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(char.avatar, avatarCX, avatarCY);
     ctx.save();
   }
   ctx.restore();
 
-  /* Avatar border ring gradient */
-  ctx.beginPath(); ctx.arc(avatarCX, avatarCY, avatarR + 2.5, 0, Math.PI * 2);
-  const ringGrad = ctx.createLinearGradient(avatarCX - avatarR, avatarCY - avatarR, avatarCX + avatarR, avatarCY + avatarR);
-  ringGrad.addColorStop(0, "rgba(212,175,55,0.9)"); ringGrad.addColorStop(0.5, "rgba(108,92,231,0.8)"); ringGrad.addColorStop(1, "rgba(212,175,55,0.7)");
-  ctx.strokeStyle = ringGrad; ctx.lineWidth = 2; ctx.stroke();
+  /* Avatar border — gradient gold → purple → gold */
+  ctx.beginPath(); ctx.arc(avatarCX, avatarCY, avatarR + 2, 0, Math.PI * 2);
+  const ringG = ctx.createLinearGradient(avatarCX - avatarR, avatarCY - avatarR, avatarCX + avatarR, avatarCY + avatarR);
+  ringG.addColorStop(0, "rgba(212,175,55,0.95)"); ringG.addColorStop(0.4, "rgba(108,92,231,0.85)"); ringG.addColorStop(0.7, "rgba(167,139,250,0.8)"); ringG.addColorStop(1, "rgba(212,175,55,0.9)");
+  ctx.strokeStyle = ringG; ctx.lineWidth = 2.2; ctx.stroke();
 
-  /* ── 7. KISMET branding (top) ── */
-  ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "#d4af37";
-  ctx.globalAlpha = 0.9;
-  ctx.fillText("✦   K I S M E T   ✦", W / 2, 28);
-  ctx.globalAlpha = 1;
+  /* ── 6. Text block ── */
+  const textTop = avatarCY + avatarR + 22;
+  ctx.textBaseline = "alphabetic";
 
-  /* Top ornamental line */
-  {
-    const ly = 38;
-    const lg = ctx.createLinearGradient(40, ly, W - 40, ly);
-    lg.addColorStop(0, "transparent"); lg.addColorStop(0.35, "rgba(212,175,55,0.5)"); lg.addColorStop(0.65, "rgba(108,92,231,0.5)"); lg.addColorStop(1, "transparent");
-    ctx.strokeStyle = lg; ctx.lineWidth = 0.8;
-    ctx.beginPath(); ctx.moveTo(40, ly); ctx.lineTo(W - 40, ly); ctx.stroke();
-  }
-
-  /* ── 8. Text block (below avatar) ── */
-  const textTop = avatarCY + avatarR + 18;
-
-  /* Name */
-  ctx.font = "bold 20px Arial"; ctx.textAlign = "center";
-  const nameGrad = ctx.createLinearGradient(W / 2 - 80, 0, W / 2 + 80, 0);
-  nameGrad.addColorStop(0, "#ffffff"); nameGrad.addColorStop(0.5, "#e8ddff"); nameGrad.addColorStop(1, "#d4af37");
-  ctx.fillStyle = nameGrad;
+  /* Name gradient */
+  ctx.font = "bold 21px Arial"; ctx.textAlign = "center";
+  const nameGr = ctx.createLinearGradient(W / 2 - 90, 0, W / 2 + 90, 0);
+  nameGr.addColorStop(0, "#ffffff"); nameGr.addColorStop(0.45, "#e8ddff"); nameGr.addColorStop(1, "#d4af37");
+  ctx.fillStyle = nameGr;
   ctx.fillText(char.name, W / 2, textTop);
 
   /* Creator */
-  ctx.font = "10px Arial"; ctx.fillStyle = "rgba(167,139,250,0.5)";
-  ctx.fillText(`bởi ${creatorName}`, W / 2, textTop + 18);
+  ctx.font = "10px Arial"; ctx.fillStyle = "rgba(167,139,250,0.48)";
+  ctx.fillText(`b\u1edfi ${creatorName}`, W / 2, textTop + 18);
 
   /* Slogan */
-  ctx.font = "italic 11.5px Arial"; ctx.fillStyle = "#c4b5fd";
+  ctx.font = "italic 11.5px Arial"; ctx.fillStyle = "rgba(196,181,253,0.85)";
   const sloganFull = `\u201C${char.slogan}\u201D`;
-  const maxSW = W - 60;
-  const shortSlogan = ctx.measureText(sloganFull).width > maxSW ? sloganFull.slice(0, 44) + "\u2026\u201D" : sloganFull;
+  const shortSlogan = ctx.measureText(sloganFull).width > W - 70 ? sloganFull.slice(0, 44) + "\u2026\u201D" : sloganFull;
   ctx.fillText(shortSlogan, W / 2, textTop + 38);
 
-  /* ── 9. Tags ── */
+  /* ── 7. Tags ── */
   const tags = (char.tags || []).slice(0, 5);
   const tagY = textTop + 56, tagH = 20;
   if (tags.length > 0) {
@@ -178,10 +221,10 @@ async function generateShareCard(char: Character, avatarSrc: string | null, crea
     const totalW = measured.reduce((s, m) => s + m.w + 6, -6);
     let tx = (W - totalW) / 2;
     measured.forEach(({ t, w }) => {
-      const hot = t.includes("18+") || t === "Bạo lực";
-      ctx.fillStyle = hot ? "rgba(239,68,68,0.2)" : "rgba(108,92,231,0.2)";
+      const hot = t.includes("18+") || t === "B\u1ea1o l\u1ef1c";
+      ctx.fillStyle = hot ? "rgba(239,68,68,0.18)" : "rgba(108,92,231,0.18)";
       rr(ctx, tx, tagY, w, tagH, 10); ctx.fill();
-      ctx.strokeStyle = hot ? "rgba(239,68,68,0.5)" : "rgba(108,92,231,0.55)";
+      ctx.strokeStyle = hot ? "rgba(239,68,68,0.55)" : "rgba(108,92,231,0.6)";
       ctx.lineWidth = 0.8; rr(ctx, tx, tagY, w, tagH, 10); ctx.stroke();
       ctx.fillStyle = hot ? "#f87171" : "#c4b5fd";
       ctx.textAlign = "center"; ctx.fillText(t, tx + w / 2, tagY + 13.5);
@@ -189,108 +232,92 @@ async function generateShareCard(char: Character, avatarSrc: string | null, crea
     });
   }
 
-  /* ── 10. Ornamental divider ── */
-  const divY = tagY + (tags.length ? 32 : 8);
+  /* ── 8. Divider with glow ── */
+  const divY = tagY + (tags.length ? 30 : 6);
   {
+    /* Glow dot at center */
+    const dg = ctx.createRadialGradient(W / 2, divY, 0, W / 2, divY, 30);
+    dg.addColorStop(0, "rgba(212,175,55,0.35)"); dg.addColorStop(1, "transparent");
+    ctx.fillStyle = dg; ctx.fillRect(W / 2 - 32, divY - 8, 64, 16);
+    /* Lines */
     const lg = ctx.createLinearGradient(30, divY, W - 30, divY);
-    lg.addColorStop(0, "transparent"); lg.addColorStop(0.4, "rgba(108,92,231,0.35)"); lg.addColorStop(0.6, "rgba(212,175,55,0.35)"); lg.addColorStop(1, "transparent");
+    lg.addColorStop(0, "transparent"); lg.addColorStop(0.35, "rgba(212,175,55,0.45)"); lg.addColorStop(0.65, "rgba(167,139,250,0.35)"); lg.addColorStop(1, "transparent");
     ctx.strokeStyle = lg; ctx.lineWidth = 0.7;
     ctx.beginPath(); ctx.moveTo(30, divY); ctx.lineTo(W - 30, divY); ctx.stroke();
-    ctx.font = "9px Arial"; ctx.fillStyle = "rgba(212,175,55,0.5)"; ctx.textAlign = "center";
-    ctx.fillText("⊹  LINH HỒN & THẾ GIỚI  ⊹", W / 2, divY + 10);
+    ctx.font = "8px Arial"; ctx.fillStyle = "rgba(212,175,55,0.45)"; ctx.textAlign = "center";
+    ctx.fillText("LINH H\u1ed2N & TH\u1ebc GI\u1edaI", W / 2, divY + 10);
   }
 
-  /* ── 11. Personality snippet ── */
+  /* ── 9. Personality snippet ── */
   const snipY = divY + 22;
-  ctx.font = "11px Arial"; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.textAlign = "left";
-  const snippet = char.personality.replace(/\n/g, " ").slice(0, 180);
-  const words = snippet.split(" ");
-  let line = "", ly = snipY;
-  for (const w of words) {
+  ctx.font = "10.5px Arial"; ctx.fillStyle = "rgba(255,255,255,0.48)"; ctx.textAlign = "left";
+  const snippet = char.personality.replace(/\n/g, " ").slice(0, 200);
+  const wds = snippet.split(" ");
+  let line = "", aly = snipY;
+  for (const w of wds) {
     const test = line + (line ? " " : "") + w;
-    if (ctx.measureText(test).width > W - 52) {
-      ctx.fillText(line, 26, ly); line = w; ly += 15;
-      if (ly > H - 175) { ctx.fillText(line + "…", 26, ly); line = ""; break; }
+    if (ctx.measureText(test).width > W - 60) {
+      ctx.fillText(line, 30, aly); line = w; aly += 14;
+      if (aly > H - 160) { ctx.fillText(line + "\u2026", 30, aly); line = ""; break; }
     } else line = test;
   }
-  if (line) ctx.fillText(line, 26, ly);
+  if (line) ctx.fillText(line, 30, aly);
 
-  /* ── 12. QR Code — rounded + K center logo ── */
-  const qrSize = 110;
-  const qrPad = 10;
+  /* ── 10. QR Code — rounded box + K logo ── */
+  const qrSize = 108;
+  const qrPad = 11;
   const qrBoxW = qrSize + qrPad * 2, qrBoxH = qrSize + qrPad * 2;
-  const qrBX = W / 2 - qrBoxW / 2, qrBY = H - qrBoxH - 42;
+  const qrBX = W / 2 - qrBoxW / 2, qrBY = H - qrBoxH - 38;
 
   try {
-    /* QR on transparent bg */
     const qrDataUrl = await QRCode.toDataURL(code, {
       width: qrSize * 4, margin: 1,
-      color: { dark: "#fffffff0", light: "#00000000" },
+      color: { dark: "#ffffffff", light: "#00000000" },
       errorCorrectionLevel: "H",
     });
     const qrImg = await loadImg(qrDataUrl);
-
     if (qrImg) {
-      /* Glow behind QR box */
-      const qglow = ctx.createRadialGradient(W / 2, qrBY + qrBoxH / 2, 0, W / 2, qrBY + qrBoxH / 2, 90);
-      qglow.addColorStop(0, "rgba(108,92,231,0.25)"); qglow.addColorStop(1, "transparent");
-      ctx.fillStyle = qglow; ctx.fillRect(qrBX - 20, qrBY - 20, qrBoxW + 40, qrBoxH + 40);
+      /* Hào quang tím phía sau QR */
+      const qglow = ctx.createRadialGradient(W / 2, qrBY + qrBoxH / 2, 0, W / 2, qrBY + qrBoxH / 2, qrBoxW * 0.8);
+      qglow.addColorStop(0, "rgba(108,92,231,0.28)"); qglow.addColorStop(0.6, "rgba(108,92,231,0.10)"); qglow.addColorStop(1, "transparent");
+      ctx.fillStyle = qglow; ctx.fillRect(qrBX - 24, qrBY - 24, qrBoxW + 48, qrBoxH + 48);
 
-      /* QR box background */
-      rr(ctx, qrBX, qrBY, qrBoxW, qrBoxH, 14);
-      ctx.fillStyle = "rgba(10,5,30,0.85)"; ctx.fill();
-      ctx.strokeStyle = "rgba(108,92,231,0.4)"; ctx.lineWidth = 1;
-      rr(ctx, qrBX, qrBY, qrBoxW, qrBoxH, 14); ctx.stroke();
+      /* Box glass bg */
+      rr(ctx, qrBX, qrBY, qrBoxW, qrBoxH, 16);
+      ctx.fillStyle = "rgba(8,4,28,0.80)"; ctx.fill();
+      const boxBorder = ctx.createLinearGradient(qrBX, qrBY, qrBX + qrBoxW, qrBY + qrBoxH);
+      boxBorder.addColorStop(0, "rgba(212,175,55,0.5)"); boxBorder.addColorStop(0.5, "rgba(108,92,231,0.4)"); boxBorder.addColorStop(1, "rgba(212,175,55,0.45)");
+      ctx.strokeStyle = boxBorder; ctx.lineWidth = 1;
+      rr(ctx, qrBX, qrBY, qrBoxW, qrBoxH, 16); ctx.stroke();
 
-      /* Draw QR clipped with rounded corners */
+      /* QR clipped rounded */
       ctx.save();
-      rr(ctx, qrBX + 4, qrBY + 4, qrBoxW - 8, qrBoxH - 8, 10);
+      rr(ctx, qrBX + 4, qrBY + 4, qrBoxW - 8, qrBoxH - 8, 12);
       ctx.clip();
       ctx.drawImage(qrImg, qrBX + qrPad, qrBY + qrPad, qrSize, qrSize);
       ctx.restore();
 
-      /* "K" center badge */
-      const kCX = qrBX + qrBoxW / 2, kCY = qrBY + qrBoxH / 2;
-      const kR = 10;
-      ctx.fillStyle = "#0d0520"; ctx.beginPath(); ctx.arc(kCX, kCY, kR + 1.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#d4af37"; ctx.beginPath(); ctx.arc(kCX, kCY, kR, 0, Math.PI * 2); ctx.fill();
-      ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillStyle = "#0d0520"; ctx.fillText("K", kCX, kCY);
+      /* K badge center */
+      const kCX = qrBX + qrBoxW / 2, kCY = qrBY + qrBoxH / 2, kR = 11;
+      const kGlow = ctx.createRadialGradient(kCX, kCY, 0, kCX, kCY, kR + 8);
+      kGlow.addColorStop(0, "rgba(212,175,55,0.5)"); kGlow.addColorStop(1, "transparent");
+      ctx.fillStyle = kGlow; ctx.beginPath(); ctx.arc(kCX, kCY, kR + 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#060118"; ctx.beginPath(); ctx.arc(kCX, kCY, kR + 1, 0, Math.PI * 2); ctx.fill();
+      const kFill = ctx.createRadialGradient(kCX - 2, kCY - 2, 0, kCX, kCY, kR);
+      kFill.addColorStop(0, "#f0d060"); kFill.addColorStop(1, "#b8900a");
+      ctx.fillStyle = kFill; ctx.beginPath(); ctx.arc(kCX, kCY, kR, 0, Math.PI * 2); ctx.fill();
+      ctx.font = "bold 12px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "#1a0830"; ctx.fillText("K", kCX, kCY);
       ctx.textBaseline = "alphabetic";
     }
-  } catch { /* skip QR on error */ }
+  } catch { /* skip */ }
 
-  /* ── 13. Bottom label ── */
-  ctx.font = "9px Arial"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(212,175,55,0.45)";
-  ctx.fillText("Quét QR để triệu hồi • KISMET", W / 2, H - 24);
-  ctx.fillStyle = "rgba(255,255,255,0.12)";
-  ctx.fillText("kismet.app", W / 2, H - 12);
-
-  /* ── 14. Outer Tarot border frame ── */
-  const bm = 10; // margin
-  rr(ctx, bm, bm, W - bm * 2, H - bm * 2, 20);
-  const borderGrad = ctx.createLinearGradient(bm, bm, W - bm, H - bm);
-  borderGrad.addColorStop(0,   "rgba(212,175,55,0.85)");
-  borderGrad.addColorStop(0.25,"rgba(108,92,231,0.7)");
-  borderGrad.addColorStop(0.5, "rgba(167,139,250,0.6)");
-  borderGrad.addColorStop(0.75,"rgba(108,92,231,0.7)");
-  borderGrad.addColorStop(1,   "rgba(212,175,55,0.85)");
-  ctx.strokeStyle = borderGrad; ctx.lineWidth = 1.5; ctx.stroke();
-
-  /* Inner thin frame */
-  const bm2 = 14;
-  rr(ctx, bm2, bm2, W - bm2 * 2, H - bm2 * 2, 16);
-  const innerGrad = ctx.createLinearGradient(bm2, bm2, W - bm2, H - bm2);
-  innerGrad.addColorStop(0, "rgba(212,175,55,0.3)"); innerGrad.addColorStop(0.5, "rgba(108,92,231,0.2)"); innerGrad.addColorStop(1, "rgba(212,175,55,0.3)");
-  ctx.strokeStyle = innerGrad; ctx.lineWidth = 0.6; ctx.stroke();
-
-  /* Corner ornaments */
-  const corners = [{ x: 22, y: 22 }, { x: W - 22, y: 22 }, { x: 22, y: H - 22 }, { x: W - 22, y: H - 22 }];
-  ctx.fillStyle = "rgba(212,175,55,0.6)";
-  corners.forEach(({ x, y }) => {
-    ctx.font = "10px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("✦", x, y);
-  });
+  /* ── 11. Bottom label ── */
+  ctx.font = "9px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(212,175,55,0.40)";
+  ctx.fillText("Qu\u00e9t QR \u0111\u1ec3 tri\u1ec7u h\u1ed3i \u2022 KISMET", W / 2, H - 22);
+  ctx.fillStyle = "rgba(255,255,255,0.10)";
+  ctx.fillText("kismet.app", W / 2, H - 11);
 
   return canvas.toDataURL("image/png");
 }
