@@ -11,36 +11,36 @@ interface BadgeConfig {
 
 const BADGE_CONFIG: Record<UserRole, BadgeConfig> = {
   admin: {
-    label: "ADMIN",
+    label: "Admin",
     icon: "👑",
-    color: "#d4af37",
-    bg: "rgba(212,175,55,0.13)",
-    border: "rgba(212,175,55,0.55)",
-    glow: "0 0 6px rgba(212,175,55,0.65), 0 0 14px rgba(212,175,55,0.35)",
+    color: "#f0cc6e",
+    bg: "rgba(212,175,55,0.12)",
+    border: "rgba(212,175,55,0.52)",
+    glow: "0 0 5px rgba(212,175,55,0.7), 0 0 12px rgba(212,175,55,0.38), 0 0 22px rgba(212,175,55,0.18)",
   },
   writer: {
-    label: "WRITER",
+    label: "Writer",
     icon: "✍️",
     color: "#c4b5fd",
-    bg: "rgba(109,40,217,0.18)",
-    border: "rgba(139,92,246,0.55)",
-    glow: "0 0 6px rgba(139,92,246,0.65), 0 0 14px rgba(109,40,217,0.35)",
+    bg: "rgba(109,40,217,0.16)",
+    border: "rgba(139,92,246,0.5)",
+    glow: "0 0 5px rgba(139,92,246,0.6), 0 0 12px rgba(109,40,217,0.3)",
   },
   vip: {
     label: "VIP",
     icon: "💎",
     color: "#93c5fd",
-    bg: "rgba(37,99,235,0.14)",
-    border: "rgba(96,165,250,0.55)",
-    glow: "0 0 6px rgba(96,165,250,0.65), 0 0 14px rgba(37,99,235,0.35)",
+    bg: "rgba(37,99,235,0.13)",
+    border: "rgba(96,165,250,0.5)",
+    glow: "0 0 5px rgba(96,165,250,0.6), 0 0 12px rgba(37,99,235,0.3)",
   },
   mod: {
-    label: "MOD",
+    label: "Mod",
     icon: "🛡️",
     color: "#6ee7b7",
-    bg: "rgba(5,150,105,0.14)",
-    border: "rgba(52,211,153,0.55)",
-    glow: "0 0 6px rgba(52,211,153,0.65), 0 0 14px rgba(5,150,105,0.35)",
+    bg: "rgba(5,150,105,0.13)",
+    border: "rgba(52,211,153,0.5)",
+    glow: "0 0 5px rgba(52,211,153,0.6), 0 0 12px rgba(5,150,105,0.3)",
   },
 };
 
@@ -52,21 +52,20 @@ export function UserBadge({ role, size = "sm" }: { role: UserRole; size?: "sm" |
       display: "inline-flex",
       alignItems: "center",
       gap: md ? 4 : 3,
-      padding: md ? "3px 10px 3px 8px" : "1px 7px 1px 5px",
+      padding: md ? "3px 10px 3px 7px" : "1px 7px 1px 5px",
       borderRadius: 20,
       background: cfg.bg,
       border: `1px solid ${cfg.border}`,
       color: cfg.color,
-      fontSize: md ? 11 : 9,
-      fontWeight: 800,
-      letterSpacing: "0.07em",
+      fontSize: md ? 10.5 : 9,
+      fontWeight: 700,
+      letterSpacing: "0.04em",
       boxShadow: cfg.glow,
       whiteSpace: "nowrap",
       flexShrink: 0,
-      textTransform: "uppercase",
       userSelect: "none",
     }}>
-      <span style={{ fontSize: md ? 13 : 10, lineHeight: 1 }}>{cfg.icon}</span>
+      <span style={{ fontSize: md ? 12 : 10, lineHeight: 1 }}>{cfg.icon}</span>
       {cfg.label}
     </span>
   );

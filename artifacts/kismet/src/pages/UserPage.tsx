@@ -121,16 +121,25 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
 
       {/* ── PROFILE INFO ── */}
       <div style={{ paddingTop: 60, paddingBottom: 8, textAlign: "center", paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 6, textShadow: "0 0 24px rgba(108,92,231,0.5)" }}>
-          {displayName}
-        </h1>
 
-        {/* Role badge */}
-        {profile?.role && (
-          <div style={{ marginBottom: 8 }}>
-            <UserBadge role={profile.role} size="md" />
-          </div>
-        )}
+        {/* Name + Badge with Smoke Glow */}
+        <div style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
+          {/* Smoke blob A — golden drift */}
+          <div style={{ position: "absolute", top: "-30%", left: "-25%", width: "75%", height: "160%", background: "radial-gradient(ellipse, rgba(212,175,55,0.13) 0%, transparent 70%)", filter: "blur(20px)", animation: "smokeDriftA 7s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
+          {/* Smoke blob B — violet drift */}
+          <div style={{ position: "absolute", top: "-20%", right: "-20%", width: "65%", height: "140%", background: "radial-gradient(ellipse, rgba(108,92,231,0.16) 0%, transparent 70%)", filter: "blur(16px)", animation: "smokeDriftB 9s ease-in-out 1.8s infinite", pointerEvents: "none", zIndex: 0 }} />
+
+          <h1 style={{ position: "relative", zIndex: 1, fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 6, textShadow: "0 0 24px rgba(108,92,231,0.5)" }}>
+            {displayName}
+          </h1>
+
+          {/* Role badge */}
+          {profile?.role && (
+            <div style={{ position: "relative", zIndex: 1, marginBottom: 4 }}>
+              <UserBadge role={profile.role} size="md" />
+            </div>
+          )}
+        </div>
 
         {isSelf && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, padding: "3px 12px", borderRadius: 20, background: "rgba(108,92,231,0.12)", border: "1px solid rgba(108,92,231,0.3)", color: "#a78bfa", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 10 }}>
@@ -230,6 +239,14 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
         @keyframes upSparkle {
           0%,100% { opacity:0.2; transform:scale(0.7); }
           50%      { opacity:1; transform:scale(1.7); }
+        }
+        @keyframes smokeDriftA {
+          0%,100% { transform:translate(0px,0px) scale(1); opacity:0.55; }
+          50%      { transform:translate(16px,-6px) scale(1.12); opacity:0.9; }
+        }
+        @keyframes smokeDriftB {
+          0%,100% { transform:translate(0px,0px) scale(1); opacity:0.45; }
+          50%      { transform:translate(-13px,9px) scale(1.09); opacity:0.8; }
         }
       `}</style>
     </div>

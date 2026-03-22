@@ -552,8 +552,8 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
           const d = snap.data() as ProfileData;
           setDraft(d);
           localStorage.setItem(`kismet_profile_${user.uid}`, JSON.stringify(d));
-          /* Sync avatar from Firestore → localStorage if not already cached */
-          if (d.avatarDataUrl && !ua) {
+          /* Sync avatar from Firestore → localStorage. Firestore is the source of truth. */
+          if (d.avatarDataUrl) {
             saveUserAvatar(email, d.avatarDataUrl);
             setAvatarUrl(d.avatarDataUrl);
             setAvatarDraft(d.avatarDataUrl);

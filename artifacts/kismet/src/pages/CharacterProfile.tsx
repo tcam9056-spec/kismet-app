@@ -580,10 +580,17 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
             </div>
           )}
 
-          <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginTop: isOwner ? 8 : 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
+          {/* ── Name + Tags: Smoke Glow Zone ── */}
+          <div style={{ position: "relative", width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {/* Smoke blob A — golden */}
+            <div style={{ position: "absolute", top: "-30%", left: "5%", width: "50%", height: "130%", background: "radial-gradient(ellipse, rgba(212,175,55,0.11) 0%, transparent 70%)", filter: "blur(22px)", animation: "smokeDriftA 7s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
+            {/* Smoke blob B — violet */}
+            <div style={{ position: "absolute", top: "-20%", right: "5%", width: "50%", height: "120%", background: "radial-gradient(ellipse, rgba(108,92,231,0.14) 0%, transparent 70%)", filter: "blur(18px)", animation: "smokeDriftB 9s ease-in-out 2s infinite", pointerEvents: "none", zIndex: 0 }} />
+
+          <h2 style={{ position: "relative", zIndex: 1, fontSize: 22, fontWeight: 900, color: "#fff", marginTop: isOwner ? 8 : 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
             {character.name}
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
             <span style={{ fontSize: 11, color: "rgba(167,139,250,0.4)" }}>Tạo bởi</span>
             {onViewCreator ? (
               <button onClick={onViewCreator} style={{ all: "unset", cursor: "pointer", fontSize: 11, fontWeight: 700, color: "#a78bfa", textDecoration: "underline", textDecorationColor: "rgba(167,139,250,0.3)", textUnderlineOffset: "2px", transition: "color 0.15s" }}
@@ -601,12 +608,12 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
             )}
           </div>
 
-          <div style={{ padding: "7px 20px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.28)", marginBottom: 16, maxWidth: "88%", textAlign: "center" }}>
+          <div style={{ position: "relative", zIndex: 1, padding: "7px 20px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.28)", marginBottom: 16, maxWidth: "88%", textAlign: "center" }}>
             <p style={{ color: "#c4b5fd", fontSize: 13, fontStyle: "italic", lineHeight: 1.5 }}>"{character.slogan}"</p>
           </div>
 
           {character.tags && character.tags.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center", marginBottom: 20 }}>
+            <div style={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center", marginBottom: 20 }}>
               {character.tags.map(tag => {
                 const tc = tagColor(tag);
                 return (
@@ -617,6 +624,7 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
               })}
             </div>
           )}
+          </div>{/* ── end smoke wrapper ── */}
 
           {character.isPublic && (
             <span style={{ fontSize: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399", borderRadius: 20, padding: "3px 12px", fontWeight: 600, marginBottom: 16 }}>
@@ -816,6 +824,14 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
         @keyframes profileSparkle {
           0%,100% { opacity: 0.15; transform: scale(0.7); }
           50%      { opacity: 1;    transform: scale(1.6); }
+        }
+        @keyframes smokeDriftA {
+          0%,100% { transform:translate(0px,0px) scale(1); opacity:0.5; }
+          50%      { transform:translate(16px,-6px) scale(1.12); opacity:0.88; }
+        }
+        @keyframes smokeDriftB {
+          0%,100% { transform:translate(0px,0px) scale(1); opacity:0.4; }
+          50%      { transform:translate(-13px,9px) scale(1.09); opacity:0.78; }
         }
       `}</style>
     </div>
