@@ -151,7 +151,7 @@ function ImportModal({ onClose, onImported, onChat }: {
         ...decoded, id: charId, createdBy: user?.email || user?.uid || "",
       };
       setStatus("ok");
-      setMsg(`🔗 Triệu hồi linh hồn ${decoded.name} thành công! Đang vào phòng chat.`);
+      setMsg(`✨ Linh hồn ${decoded.name} đã được triệu hồi! Đang vào phòng chat...`);
       setTimeout(() => {
         onImported(decoded.name);
         onClose();
@@ -178,9 +178,9 @@ function ImportModal({ onClose, onImported, onChat }: {
       const result = jsQR(imageData.data, c.width, c.height);
       URL.revokeObjectURL(objectUrl);
       if (result) {
+        /* Tự động triệu hồi ngay khi nhận diện QR thành công */
         setCode(result.data);
-        setStatus("idle");
-        setMsg("✓ Nhận dạng QR thành công!");
+        doImport(result.data);
       } else {
         setStatus("idle");
         setMsg("❌ Không tìm thấy mã hoặc ảnh QR không hợp lệ. Vui lòng thử lại.");
