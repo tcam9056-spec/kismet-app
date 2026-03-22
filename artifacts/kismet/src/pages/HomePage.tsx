@@ -16,104 +16,288 @@ export default function HomePage({ onChat, onSettings, onAddCharacter }: Props) 
   const { characters, loading } = useCharacters();
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
 
-  const handleAvatarClick = (char: Character) => {
-    setSelectedChar(char);
-  };
-
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-lg mx-auto">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "#0a0a0f",
+        color: "#fff",
+        fontFamily: "'Segoe UI', system-ui, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "20px 20px 16px",
+            borderBottom: "1px solid rgba(108,92,231,0.15)",
+          }}
+        >
           <div>
-            <h1 className="text-xl font-bold text-gray-800 tracking-tight">🔮 KISMET</h1>
-            <p className="text-xs text-gray-400">{user?.email}</p>
+            <h1
+              style={{
+                fontSize: 20,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                background: "linear-gradient(90deg, #c4b5fd, #a78bfa, #7c3aed)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                marginBottom: 2,
+              }}
+            >
+              🔮 KISMET
+            </h1>
+            <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)" }}>
+              {user?.email}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={onSettings}
-              className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors"
               title="Cài đặt"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.05)",
+                color: "rgba(167,139,250,0.7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
             >
-              <Settings className="w-4 h-4" />
+              <Settings size={15} />
             </button>
             <button
               onClick={() => logout()}
-              className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-400 transition-colors"
               title="Đăng xuất"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.05)",
+                color: "rgba(167,139,250,0.7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
 
-        <div className="px-6 pt-6 pb-2">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+        {/* Character List */}
+        <div style={{ padding: "20px 16px" }}>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "rgba(167,139,250,0.4)",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              marginBottom: 14,
+              paddingLeft: 4,
+            }}
+          >
             Nhân Vật
-          </h2>
+          </p>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center">
-                <Loader2 className="w-6 h-6 text-violet-400 animate-spin mx-auto mb-3" />
-                <p className="text-gray-400 text-sm">Đang triệu hồi nhân vật...</p>
-              </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "60px 0",
+                gap: 10,
+              }}
+            >
+              <Loader2
+                size={22}
+                style={{ color: "#a78bfa", animation: "spin 1s linear infinite" }}
+              />
+              <p style={{ fontSize: 13, color: "rgba(167,139,250,0.4)", fontStyle: "italic" }}>
+                Đang triệu hồi nhân vật...
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {characters.map((char) => (
                 <div
                   key={char.id}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:border-violet-200 hover:bg-violet-50/30 transition-all group cursor-pointer"
                   onClick={() => onChat(char)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "14px 16px",
+                    borderRadius: 16,
+                    border: "1px solid rgba(108,92,231,0.15)",
+                    background: "rgba(255,255,255,0.03)",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(108,92,231,0.4)";
+                    (e.currentTarget as HTMLDivElement).style.background = "rgba(108,92,231,0.07)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(108,92,231,0.15)";
+                    (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.03)";
+                  }}
                 >
                   <button
-                    className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center text-3xl flex-shrink-0 hover:scale-105 transition-transform"
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #1a0a3e 0%, #6c5ce7 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 26,
+                      flexShrink: 0,
+                      border: "1.5px solid rgba(108,92,231,0.4)",
+                      boxShadow: "0 0 16px rgba(108,92,231,0.25)",
+                      cursor: "pointer",
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleAvatarClick(char);
+                      setSelectedChar(char);
                     }}
                     title="Xem hồ sơ"
                   >
                     {char.avatar}
                   </button>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-800 truncate">{char.name}</h3>
-                    <p className="text-xs text-gray-400 italic truncate mt-0.5">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#fff",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        marginBottom: 3,
+                      }}
+                    >
+                      {char.name}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "rgba(167,139,250,0.55)",
+                        fontStyle: "italic",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
                       "{char.slogan}"
                     </p>
                     {char.isPublic && (
-                      <span className="inline-block mt-1 text-xs text-emerald-500">✦ Công khai</span>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          marginTop: 4,
+                          fontSize: 10,
+                          color: "#34d399",
+                          background: "rgba(52,211,153,0.1)",
+                          border: "1px solid rgba(52,211,153,0.2)",
+                          borderRadius: 20,
+                          padding: "1px 8px",
+                        }}
+                      >
+                        ✦ Công khai
+                      </span>
                     )}
                   </div>
-                  <div className="text-gray-200 group-hover:text-violet-300 transition-colors">
-                    <span className="text-lg">›</span>
-                  </div>
+                  <span style={{ fontSize: 18, color: "rgba(108,92,231,0.4)", flexShrink: 0 }}>
+                    ›
+                  </span>
                 </div>
               ))}
 
               <button
                 onClick={onAddCharacter}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-dashed border-gray-200 hover:border-violet-300 hover:bg-violet-50/30 transition-all group"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  border: "1px dashed rgba(108,92,231,0.25)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  width: "100%",
+                  transition: "all 0.15s",
+                  color: "#fff",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(108,92,231,0.5)";
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(108,92,231,0.07)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(108,92,231,0.25)";
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                }}
               >
-                <div className="w-14 h-14 rounded-2xl bg-gray-50 group-hover:bg-violet-50 flex items-center justify-center flex-shrink-0 transition-colors">
-                  <Plus className="w-5 h-5 text-gray-300 group-hover:text-violet-400 transition-colors" />
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    border: "1.5px dashed rgba(108,92,231,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Plus size={20} style={{ color: "rgba(108,92,231,0.5)" }} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-400 group-hover:text-violet-600 transition-colors">
+                  <p
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "rgba(167,139,250,0.6)",
+                      marginBottom: 2,
+                    }}
+                  >
                     Tạo nhân vật mới
                   </p>
-                  <p className="text-xs text-gray-300">Triệu hồi linh hồn của riêng bạn</p>
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
+                    Triệu hồi linh hồn của riêng bạn
+                  </p>
                 </div>
               </button>
             </div>
           )}
         </div>
 
-        <div className="px-6 py-6 mt-4 text-center">
-          <p className="text-xs text-gray-200 italic">
-            "Mọi cuộc gặp gỡ đều là số phận đã định"
-          </p>
-        </div>
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: 11,
+            color: "rgba(167,139,250,0.2)",
+            fontStyle: "italic",
+            paddingBottom: 24,
+          }}
+        >
+          "Mọi cuộc gặp gỡ đều là số phận đã định"
+        </p>
       </div>
 
       {selectedChar && (
@@ -123,6 +307,10 @@ export default function HomePage({ onChat, onSettings, onAddCharacter }: Props) 
           onChat={() => onChat(selectedChar)}
         />
       )}
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

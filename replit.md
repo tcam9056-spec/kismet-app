@@ -12,7 +12,9 @@ Full-stack AI character chat app with:
 - **Gemini AI** (2.5/3.1 only) — direct API calls from frontend
 - **BYOK** — user stores their own API keys in Firestore `users/{uid}/settings/config`
 - **Auto key rotation** — tries next key on 429/400 errors
-- **Mystic Light theme** — white ceramic background, Lavender Violet accent
+- **Dark Mystic theme** — deep black (#0a0a0f) background, purple (#6c5ce7) accent, consistent dark mode across all screens
+- **localStorage session** — session cached in `kismet_session` for instant load; messages cached in `kismet_chat_{email}_{characterId}`
+- **User profile** — stored in `kismet_profile_{uid}` (avatar base64, gender, personality, bio, appearance); accessible via gear icon in chat header
 
 ### Characters
 - Stored in Firestore `characters` collection with `isPublic` flag

@@ -43,8 +43,7 @@ export default function SettingsPage({ onBack }: Props) {
       if (data.defaultGeminiKey && !localKeys.includes(data.defaultGeminiKey)) {
         setLocalKeys((prev) => [data.defaultGeminiKey, ...prev]);
       }
-    } catch {
-    }
+    } catch {}
     setLoadingServerKey(false);
   };
 
@@ -67,76 +66,157 @@ export default function SettingsPage({ onBack }: Props) {
     setTimeout(() => setSaved(false), 2500);
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "1px solid rgba(108,92,231,0.2)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+      <div
+        style={{
+          minHeight: "100dvh",
+          background: "#0a0a0f",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Loader2 size={22} style={{ color: "#a78bfa", animation: "spin 1s linear infinite" }} />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-lg mx-auto">
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100">
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "#0a0a0f",
+        color: "#fff",
+        fontFamily: "'Segoe UI', system-ui, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "20px 20px 16px",
+            borderBottom: "1px solid rgba(108,92,231,0.15)",
+          }}
+        >
           <button
             onClick={onBack}
-            className="w-9 h-9 rounded-xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.05)",
+              color: "#a78bfa",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft size={16} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-gray-800">Cài đặt</h1>
-            <p className="text-xs text-gray-400">{user?.email}</p>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>Cài đặt</h1>
+            <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)", marginTop: 1 }}>
+              {user?.email}
+            </p>
           </div>
         </div>
 
-        <div className="p-6 space-y-8">
+        <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 32 }}>
+          {/* Model Selection */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Bot className="w-4 h-4 text-violet-500" />
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Bot size={14} style={{ color: "#a78bfa" }} />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "rgba(167,139,250,0.5)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                }}
+              >
                 Model AI
-              </h2>
+              </span>
             </div>
-            <div className="space-y-2">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {GEMINI_MODELS.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setLocalModel(m.id)}
-                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                    localModel === m.id
-                      ? "border-violet-300 bg-violet-50 text-violet-700"
-                      : "border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-200"
-                  }`}
+                  style={{
+                    padding: "12px 16px",
+                    borderRadius: 12,
+                    border: `1px solid ${localModel === m.id ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`,
+                    background: localModel === m.id ? "rgba(108,92,231,0.15)" : "rgba(255,255,255,0.03)",
+                    color: "#fff",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{m.label}</span>
-                    {localModel === m.id && (
-                      <span className="text-violet-500 text-xs font-semibold">✓ Đang dùng</span>
-                    )}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: localModel === m.id ? "#c4b5fd" : "rgba(255,255,255,0.8)" }}>
+                      {m.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", marginTop: 2, fontFamily: "monospace" }}>
+                      models/{m.id}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">models/{m.id}</p>
+                  {localModel === m.id && (
+                    <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
+          {/* API Keys */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Key className="w-4 h-4 text-violet-500" />
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Key size={14} style={{ color: "#a78bfa" }} />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "rgba(167,139,250,0.5)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                }}
+              >
                 API Keys (Pháp Khí)
-              </h2>
+              </span>
             </div>
-            <p className="text-xs text-gray-400 mb-3">
-              Thêm nhiều key để tự động xoay vòng khi gặp lỗi 429/400.
-              Lấy key tại{" "}
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 14, lineHeight: 1.5 }}>
+              Thêm nhiều key để tự động xoay vòng khi gặp lỗi 429/400. Lấy key tại{" "}
               <a
                 href="https://aistudio.google.com/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-violet-500 underline"
+                style={{ color: "#a78bfa", textDecoration: "underline" }}
               >
                 aistudio.google.com/apikey
               </a>
@@ -146,43 +226,97 @@ export default function SettingsPage({ onBack }: Props) {
               <button
                 onClick={useServerKey}
                 disabled={loadingServerKey}
-                className="w-full mb-3 flex items-center gap-2 px-4 py-3 rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-700 transition-all text-sm font-medium"
+                style={{
+                  width: "100%",
+                  marginBottom: 12,
+                  padding: "11px 16px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(108,92,231,0.3)",
+                  background: "rgba(108,92,231,0.1)",
+                  color: "#c4b5fd",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  transition: "all 0.15s",
+                }}
               >
                 {loadingServerKey ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
                 ) : (
-                  <Zap className="w-4 h-4" />
+                  <Zap size={14} />
                 )}
-                <span>Dùng Google API Key từ hệ thống (tự động)</span>
+                Dùng Google API Key từ hệ thống (tự động)
               </button>
             )}
 
-            <div className="space-y-2 mb-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
               {localKeys.map((key, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 border border-gray-100"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "rgba(255,255,255,0.03)",
+                  }}
                 >
-                  <Key className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                  <span className="text-sm text-gray-600 font-mono flex-1 truncate">
+                  <Key size={13} style={{ color: "rgba(167,139,250,0.3)", flexShrink: 0 }} />
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.5)",
+                      fontFamily: "monospace",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {key.slice(0, 8)}••••••••{key.slice(-4)}
                   </span>
                   <button
                     onClick={() => removeKey(i)}
-                    className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      border: "none",
+                      background: "rgba(239,68,68,0.1)",
+                      color: "rgba(239,68,68,0.5)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 size={12} />
                   </button>
                 </div>
               ))}
               {localKeys.length === 0 && (
-                <div className="text-center py-4 text-gray-300 text-sm border border-dashed border-gray-200 rounded-xl">
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "20px 0",
+                    border: "1px dashed rgba(108,92,231,0.2)",
+                    borderRadius: 12,
+                    color: "rgba(255,255,255,0.2)",
+                    fontSize: 13,
+                  }}
+                >
                   Chưa có API Key nào
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div style={{ display: "flex", gap: 8 }}>
               <input
                 type="password"
                 value={newKey}
@@ -190,22 +324,58 @@ export default function SettingsPage({ onBack }: Props) {
                 onKeyDown={(e) => e.key === "Enter" && addKey()}
                 placeholder="AIza... (Dán API Key vào đây)"
                 autoComplete="off"
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent text-sm transition-all"
+                style={{ ...inputStyle, flex: 1 }}
               />
               <button
                 onClick={addKey}
                 disabled={!newKey.trim()}
-                className="w-12 h-12 rounded-xl bg-violet-100 hover:bg-violet-200 text-violet-600 flex items-center justify-center transition-colors disabled:opacity-40"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  border: "none",
+                  background: newKey.trim() ? "rgba(108,92,231,0.3)" : "rgba(255,255,255,0.05)",
+                  color: newKey.trim() ? "#a78bfa" : "rgba(255,255,255,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: newKey.trim() ? "pointer" : "not-allowed",
+                  flexShrink: 0,
+                }}
               >
-                <Plus className="w-5 h-5" />
+                <Plus size={18} />
               </button>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-600 space-y-1">
-            <p className="font-semibold">📋 Firestore Security Rules</p>
-            <p>Nếu không tải được chat, vào Firestore Console → Rules → dán:</p>
-            <pre className="bg-white rounded-lg p-2 mt-2 text-xs text-gray-600 overflow-x-auto">{`rules_version = '2';
+          {/* Firestore rules hint */}
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 14,
+              background: "rgba(59,130,246,0.07)",
+              border: "1px solid rgba(59,130,246,0.15)",
+            }}
+          >
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#93c5fd", marginBottom: 8 }}>
+              📋 Firestore Security Rules
+            </p>
+            <p style={{ fontSize: 12, color: "rgba(147,197,253,0.6)", marginBottom: 8, lineHeight: 1.5 }}>
+              Nếu không tải được chat, vào Firestore Console → Rules → dán:
+            </p>
+            <pre
+              style={{
+                background: "rgba(0,0,0,0.4)",
+                borderRadius: 8,
+                padding: "10px 12px",
+                fontSize: 11,
+                color: "rgba(255,255,255,0.5)",
+                overflowX: "auto",
+                fontFamily: "monospace",
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >{`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
@@ -215,15 +385,34 @@ service cloud.firestore {
 }`}</pre>
           </div>
 
+          {/* Save button */}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-md shadow-violet-200"
+            style={{
+              padding: "14px 0",
+              borderRadius: 14,
+              border: "none",
+              background: saved
+                ? "linear-gradient(135deg, #16a34a, #15803d)"
+                : "linear-gradient(135deg, #7c3aed, #6c5ce7)",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: saving ? "not-allowed" : "pointer",
+              boxShadow: "0 6px 20px rgba(108,92,231,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              transition: "background 0.3s",
+              marginBottom: 32,
+            }}
           >
             {saving ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang lưu...</span>
+                <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                Đang lưu...
               </>
             ) : saved ? (
               "✓ Đã lưu thành công!"
@@ -233,6 +422,11 @@ service cloud.firestore {
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        input::placeholder { color: rgba(255,255,255,0.2); }
+      `}</style>
     </div>
   );
 }
