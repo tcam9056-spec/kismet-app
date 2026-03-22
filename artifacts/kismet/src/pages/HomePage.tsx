@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Settings, Plus, Loader2, Globe, MessageCircle, User,
-  Camera, Search, CheckCircle, XCircle, Clock
+  Camera, Search, CheckCircle, XCircle, Clock, Wand2, X
 } from "lucide-react";
+import { decodeCharacter } from "./CharacterProfile";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -120,12 +121,74 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 }
 
 /* ══════════════════════════════════════════════
+   IMPORT MODAL — paste code to summon character
+══════════════════════════════════════════════ */
+function ImportModal({ onClose, onImported }: { onClose: () => void; onImported: (name: string) => void }) {
+  const { addCharacter } = useCharacters();
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const handleImport = async () => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    const decoded = decodeCharacter(trimmed);
+    if (!decoded) { setStatus("error"); setMsg("Mã không hợp lệ. Vui lòng kiểm tra lại."); return; }
+    setStatus("loading"); setMsg("");
+    try {
+      await addCharacter({ ...decoded, isPublic: false, isApproved: true });
+      setStatus("ok");
+      setMsg(`Đã triệu hồi "${decoded.name}" thành công!`);
+      setTimeout(() => { onImported(decoded.name); onClose(); }, 1400);
+    } catch {
+      setStatus("error");
+      setMsg("Không thể triệu hồi. Thử lại sau.");
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", backdropFilter: "blur(14px)" }} onClick={onClose}>
+      <div style={{ background: "linear-gradient(180deg,#1c1825,#100d1a)", border: "1px solid rgba(108,92,231,0.3)", borderRadius: 24, padding: 28, width: "min(380px,90vw)", boxShadow: "0 25px 60px rgba(0,0,0,0.6)" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>✦ Triệu hồi bằng mã</h2>
+            <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)", marginTop: 3 }}>Dán mã chia sẻ để thêm nhân vật</p>
+          </div>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} /></button>
+        </div>
+
+        <textarea
+          value={code}
+          onChange={e => { setCode(e.target.value); setStatus("idle"); }}
+          placeholder="Dán mã nhân vật vào đây..."
+          rows={4}
+          style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1px solid ${status === "error" ? "rgba(239,68,68,0.5)" : status === "ok" ? "rgba(52,211,153,0.5)" : "rgba(108,92,231,0.25)"}`, background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: 12, outline: "none", fontFamily: "monospace", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }}
+          autoFocus
+        />
+
+        {msg && (
+          <p style={{ fontSize: 12, color: status === "ok" ? "#34d399" : "#fca5a5", marginTop: 8, textAlign: "center" }}>{msg}</p>
+        )}
+
+        <button onClick={handleImport} disabled={!code.trim() || status === "loading" || status === "ok"}
+          style={{ width: "100%", padding: "13px 0", marginTop: 14, borderRadius: 13, border: "none", background: status === "ok" ? "rgba(52,211,153,0.3)" : "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: !code.trim() || status === "loading" || status === "ok" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 16px rgba(108,92,231,0.35)", transition: "all 0.2s" }}>
+          {status === "loading" ? <><Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Đang triệu hồi...</>
+            : status === "ok" ? "✓ Thành công!"
+            : <><Wand2 size={14} /> Triệu hồi nhân vật</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
    TAB: ALL — Forum/Feed style character cards
 ══════════════════════════════════════════════ */
 function AllTab({ onChat, onAddCharacter }: { onChat: (c: Character) => void; onAddCharacter: () => void }) {
   const { characters, loading } = useCharacters();
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
   const [query, setQuery] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   const filtered = query.trim()
     ? characters.filter(c => c.name.toLowerCase().includes(query.toLowerCase()) || c.slogan.toLowerCase().includes(query.toLowerCase()))
@@ -192,24 +255,43 @@ function AllTab({ onChat, onAddCharacter }: { onChat: (c: Character) => void; on
             </div>
           )}
 
-          {/* ── ADD NEW ── */}
-          <button onClick={onAddCharacter}
-            style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.22)", background: "transparent", cursor: "pointer", width: "100%", marginBottom: 20, transition: "all 0.15s", color: "#fff" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(108,92,231,0.06)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", border: "1.5px dashed rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Plus size={18} style={{ color: "rgba(108,92,231,0.5)" }} />
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(167,139,250,0.5)" }}>Tạo nhân vật mới</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)" }}>Nhân vật công khai cần Admin duyệt</p>
-            </div>
-          </button>
+          {/* ── ADD NEW + IMPORT ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+            <button onClick={onAddCharacter}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, border: "1px dashed rgba(108,92,231,0.22)", background: "transparent", cursor: "pointer", width: "100%", transition: "all 0.15s", color: "#fff" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(108,92,231,0.06)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", border: "1.5px dashed rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Plus size={18} style={{ color: "rgba(108,92,231,0.5)" }} />
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(167,139,250,0.5)" }}>Tạo nhân vật mới</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)" }}>Nhân vật công khai cần Admin duyệt</p>
+              </div>
+            </button>
+
+            <button onClick={() => setShowImport(true)}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, border: "1px dashed rgba(212,175,55,0.25)", background: "transparent", cursor: "pointer", width: "100%", transition: "all 0.15s", color: "#fff" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(212,175,55,0.05)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", border: "1.5px dashed rgba(212,175,55,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Wand2 size={18} style={{ color: "rgba(212,175,55,0.6)" }} />
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(212,175,55,0.6)" }}>Triệu hồi bằng mã</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.18)" }}>Dán mã QR từ bạn bè để thêm nhân vật</p>
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
       {selectedChar && (
         <CharacterProfile character={selectedChar} onClose={() => setSelectedChar(null)} onChat={() => { onChat(selectedChar); setSelectedChar(null); }} />
+      )}
+
+      {showImport && (
+        <ImportModal onClose={() => setShowImport(false)} onImported={() => setShowImport(false)} />
       )}
     </div>
   );
