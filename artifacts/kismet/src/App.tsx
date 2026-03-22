@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth, getLocalSession } from "@/contexts/AuthContext";
 import AuthPage from "@/pages/AuthPage";
 import HomePage from "@/pages/HomePage";
 import ChatPage from "@/pages/ChatPage";
@@ -18,13 +18,27 @@ function AppContent() {
   const [screen, setScreen] = useState<Screen>("home");
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
 
-  if (loading) {
+  const hasLocalSession = !!getLocalSession();
+
+  if (loading && !hasLocalSession) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: "linear-gradient(135deg, #0f0520 0%, #1a0a3e 40%, #2d1060 70%, #1a0535 100%)",
+        }}
+      >
         <div className="text-center">
-          <div className="text-4xl mb-4">🔮</div>
-          <Loader2 className="w-5 h-5 text-violet-400 animate-spin mx-auto" />
-          <p className="text-gray-300 text-sm mt-2">Đang kết nối tâm giao...</p>
+          <div
+            className="text-5xl mb-5"
+            style={{ filter: "drop-shadow(0 0 20px rgba(167,139,250,0.6))" }}
+          >
+            🔮
+          </div>
+          <Loader2 className="w-5 h-5 mx-auto animate-spin" style={{ color: "#a78bfa" }} />
+          <p className="text-sm mt-2 italic" style={{ color: "rgba(167,139,250,0.5)" }}>
+            Đang kết nối tâm giao...
+          </p>
         </div>
       </div>
     );
@@ -38,7 +52,10 @@ function AppContent() {
     return (
       <ChatPage
         character={activeCharacter}
-        onBack={() => setScreen("home")}
+        onBack={() => {
+          setScreen("home");
+          setActiveCharacter(null);
+        }}
       />
     );
   }

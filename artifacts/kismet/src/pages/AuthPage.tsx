@@ -1,30 +1,31 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const getFirebaseError = (code: string): string => {
     switch (code) {
       case "auth/user-not-found":
-        return "Tài khoản không tồn tại. Hãy đăng ký mới.";
+        return "Tài khoản không tồn tại. Hãy bấm Đăng ký.";
       case "auth/wrong-password":
       case "auth/invalid-credential":
         return "Email hoặc mật khẩu không đúng.";
       case "auth/email-already-in-use":
-        return "Email này đã được dùng. Hãy đăng nhập.";
+        return "Email đã tồn tại. Hãy bấm Đăng nhập.";
       case "auth/weak-password":
-        return "Mật khẩu quá yếu. Tối thiểu 6 ký tự.";
+        return "Mật khẩu quá yếu. Cần ít nhất 6 ký tự.";
       case "auth/invalid-email":
         return "Địa chỉ email không hợp lệ.";
       case "auth/too-many-requests":
-        return "Quá nhiều lần thử. Vui lòng đợi vài phút.";
+        return "Quá nhiều lần thử sai. Vui lòng đợi vài phút.";
       case "auth/network-request-failed":
         return "Lỗi mạng. Kiểm tra kết nối internet.";
       default:
@@ -51,24 +52,60 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: "linear-gradient(135deg, #0f0520 0%, #1a0a3e 40%, #2d1060 70%, #1a0535 100%)",
+      }}
+    >
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="text-5xl mb-4">🔮</div>
-          <h1 className="text-3xl font-bold text-gray-800 tracking-tight">KISMET</h1>
-          <p className="text-gray-400 text-sm mt-1 font-light tracking-widest uppercase">
+          <div
+            className="text-6xl mb-5 inline-block"
+            style={{ filter: "drop-shadow(0 0 20px rgba(167,139,250,0.6))" }}
+          >
+            🔮
+          </div>
+          <h1
+            className="text-4xl font-bold tracking-tight"
+            style={{
+              background: "linear-gradient(90deg, #c4b5fd, #a78bfa, #7c3aed)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            KISMET
+          </h1>
+          <p
+            className="text-xs mt-2 tracking-widest uppercase font-light"
+            style={{ color: "rgba(196,181,253,0.5)" }}
+          >
             AI Character Chat
           </p>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-lg p-8">
-          <h2 className="text-xl font-semibold text-gray-700 mb-6 text-center">
+        <div
+          className="rounded-2xl p-8"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(167,139,250,0.2)",
+            backdropFilter: "blur(20px)",
+            boxShadow: "0 25px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+          }}
+        >
+          <h2
+            className="text-xl font-semibold mb-6 text-center"
+            style={{ color: "rgba(255,255,255,0.9)" }}
+          >
             {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              <label
+                className="block text-sm font-medium mb-1.5"
+                style={{ color: "rgba(196,181,253,0.8)" }}
+              >
                 Email
               </label>
               <input
@@ -78,40 +115,104 @@ export default function AuthPage() {
                 placeholder="your@email.com"
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent text-sm transition-all"
+                className="w-full px-4 py-3 rounded-xl text-sm transition-all outline-none"
+                style={{
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(167,139,250,0.3)",
+                  color: "rgba(255,255,255,0.9)",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "rgba(167,139,250,0.8)";
+                  e.target.style.background = "rgba(255,255,255,0.1)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(167,139,250,0.3)";
+                  e.target.style.background = "rgba(255,255,255,0.07)";
+                }}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              <label
+                className="block text-sm font-medium mb-1.5"
+                style={{ color: "rgba(196,181,253,0.8)" }}
+              >
                 Mật khẩu
                 {mode === "register" && (
-                  <span className="text-gray-400 font-normal ml-1">(tối thiểu 6 ký tự)</span>
+                  <span
+                    className="font-normal ml-1 text-xs"
+                    style={{ color: "rgba(196,181,253,0.4)" }}
+                  >
+                    (tối thiểu 6 ký tự)
+                  </span>
                 )}
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent text-sm transition-all"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  className="w-full px-4 py-3 pr-12 rounded-xl text-sm transition-all outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.07)",
+                    border: "1px solid rgba(167,139,250,0.3)",
+                    color: "rgba(255,255,255,0.9)",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(167,139,250,0.8)";
+                    e.target.style.background = "rgba(255,255,255,0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(167,139,250,0.3)";
+                    e.target.style.background = "rgba(255,255,255,0.07)";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+                  style={{ color: "rgba(167,139,250,0.6)" }}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-red-500 text-sm">{error}</p>
+              <div
+                className="rounded-xl px-4 py-3 text-sm flex items-start gap-2"
+                style={{
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#fca5a5",
+                }}
+              >
+                <span className="flex-shrink-0 mt-0.5">⚠</span>
+                <span>{error}</span>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-violet-200"
+              className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2"
+              style={{
+                background: loading
+                  ? "rgba(124,58,237,0.5)"
+                  : "linear-gradient(135deg, #7c3aed, #6d28d9)",
+                color: "white",
+                boxShadow: loading ? "none" : "0 8px 24px rgba(124,58,237,0.4)",
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
             >
               {loading ? (
                 <>
@@ -131,8 +232,16 @@ export default function AuthPage() {
               onClick={() => {
                 setMode(mode === "login" ? "register" : "login");
                 setError(null);
+                setPassword("");
               }}
-              className="text-sm text-violet-600 hover:text-violet-700 font-medium transition-colors"
+              className="text-sm font-medium transition-colors"
+              style={{ color: "rgba(167,139,250,0.8)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "rgba(196,181,253,1)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "rgba(167,139,250,0.8)")
+              }
             >
               {mode === "login"
                 ? "Chưa có tài khoản? Đăng ký ngay"
@@ -141,7 +250,10 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-300 mt-6">
+        <p
+          className="text-center text-xs mt-6 italic"
+          style={{ color: "rgba(167,139,250,0.3)" }}
+        >
           Số phận đã an bài. Hãy bước vào.
         </p>
       </div>
