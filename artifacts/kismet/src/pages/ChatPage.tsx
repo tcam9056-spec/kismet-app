@@ -604,8 +604,8 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
         )}
 
         {error && (
-          <div style={{ margin: "4px 8px", padding: "10px 14px", borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5", fontSize: 13, display: "flex", alignItems: "flex-start", gap: 6 }}>
-            <span style={{ flexShrink: 0 }}>⚠</span><span>{error}</span>
+          <div style={{ margin: "4px 8px", padding: "10px 14px", borderRadius: 12, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", color: "rgba(167,139,250,0.7)", fontSize: 12, display: "flex", alignItems: "flex-start", gap: 6 }}>
+            <span style={{ flexShrink: 0 }}>✦</span><span>Không thể gửi tin. Vui lòng thử lại.</span>
           </div>
         )}
 
