@@ -631,7 +631,7 @@ interface ProfileData { gender: string; personality: string; bio: string; appear
 
 function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: () => void; onAddCharacter: () => void; onViewMyPage?: () => void }) {
   const { user, logout } = useAuth();
-  const { pending, isAdmin } = useCharacters();
+  const { pending, isAdmin, characters } = useCharacters();
   const email = user?.email || user?.uid || "";
   const fileRef = useRef<HTMLInputElement>(null);
   const [showAdmin, setShowAdmin] = useState(false);
