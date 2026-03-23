@@ -16,20 +16,16 @@ export async function connectDatabase(): Promise<void> {
   }
 
   if (!uri.startsWith("mongodb://") && !uri.startsWith("mongodb+srv://")) {
-    logger.warn(
-      'MONGODB_URI không hợp lệ — phải bắt đầu bằng "mongodb://" hoặc "mongodb+srv://". Bỏ qua kết nối.',
+    logger.error(
+      { hint: "URI phải bắt đầu bằng mongodb:// hoặc mongodb+srv://" },
+      `MONGODB_URI không hợp lệ — giá trị hiện tại bắt đầu bằng: "${uri.slice(0, 20)}..."`,
     );
     return;
   }
 
-  // Log sanitized URI (ẩn password)
-  const sanitized = uri.replace(/:([^@]+)@/, ":****@");
+  const sanitized = uri.replace(/:([^@]{1,}?)@/, ":****@");
   logger.info({ uri: sanitized }, "Đang kết nối MongoDB...");
 
-  // Mongoose connection events
-  mongoose.connection.on("connecting", () =>
-    logger.info("MongoDB: đang kết nối..."),
-  );
   mongoose.connection.on("connected", () =>
     logger.info("MongoDB: kết nối thành công!"),
   );
@@ -42,8 +38,8 @@ export async function connectDatabase(): Promise<void> {
 
   try {
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
     });
     isConnected = true;
     logger.info(
@@ -55,7 +51,14 @@ export async function connectDatabase(): Promise<void> {
       err instanceof Error ? err.message : JSON.stringify(err);
     logger.error(
       { message },
-      "Kết nối MongoDB thất bại — kiểm tra MONGODB_URI, IP whitelist (0.0.0.0/0) và username/password",
+      "Kết nối MongoDB thất bại",
+    );
+    logger.error(
+      "Hướng dẫn sửa lỗi:\n" +
+      "  1. Kiểm tra URI format: mongodb+srv://USERNAME:PASSWORD@cluster.mongodb.net/kismet\n" +
+      "  2. Đảm bảo IP 0.0.0.0/0 đã được thêm vào Network Access trong Atlas\n" +
+      "  3. Xác nhận username và password đúng (không có ký tự đặc biệt chưa được encode)\n" +
+      "  4. Cluster phải đang chạy (không bị paused)",
     );
   }
 }
