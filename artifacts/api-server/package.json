@@ -10,12 +10,15 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@types/mongoose": "^5.11.97",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "mongoose": "^9.3.1",
     "multer": "^2.1.1",
     "pino": "^9",
     "pino-http": "^10"
