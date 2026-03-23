@@ -7,7 +7,7 @@ export interface IChatProfile extends Document {
   personality: string;
   bio: string;
   appearance: string;
-  avatar: string;
+  avatarUrl: string;
   isDefault: boolean;
   createdAt: Date;
 }
@@ -20,7 +20,7 @@ const ChatProfileSchema = new Schema<IChatProfile>(
     personality: { type: String, default: "", trim: true },
     bio: { type: String, default: "", trim: true },
     appearance: { type: String, default: "", trim: true },
-    avatar: { type: String, default: "" },
+    avatarUrl: { type: String, default: "" },
     isDefault: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: true, updatedAt: false } },

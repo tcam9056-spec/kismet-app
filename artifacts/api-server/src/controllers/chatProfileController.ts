@@ -14,7 +14,7 @@ function dbGuard(res: Response): boolean {
 export async function createChatProfile(req: Request, res: Response): Promise<void> {
   if (!dbGuard(res)) return;
 
-  const { userId, name, gender, personality, bio, appearance, avatar, isDefault } =
+  const { userId, name, gender, personality, bio, appearance, avatarUrl, isDefault } =
     req.body as {
       userId?: string;
       name?: string;
@@ -22,7 +22,7 @@ export async function createChatProfile(req: Request, res: Response): Promise<vo
       personality?: string;
       bio?: string;
       appearance?: string;
-      avatar?: string;
+      avatarUrl?: string;
       isDefault?: boolean;
     };
 
@@ -32,7 +32,6 @@ export async function createChatProfile(req: Request, res: Response): Promise<vo
   }
 
   try {
-    /* If this profile is set as default, unset others for the same user */
     if (isDefault) {
       await ChatProfile.updateMany({ userId }, { isDefault: false });
     }
@@ -44,7 +43,7 @@ export async function createChatProfile(req: Request, res: Response): Promise<vo
       personality: personality ?? "",
       bio: bio ?? "",
       appearance: appearance ?? "",
-      avatar: avatar ?? "",
+      avatarUrl: avatarUrl ?? "",
       isDefault: isDefault ?? false,
     });
 

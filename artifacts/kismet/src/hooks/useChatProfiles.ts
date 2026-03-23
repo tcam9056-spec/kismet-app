@@ -8,7 +8,7 @@ export interface ChatProfile {
   personality: string;
   bio: string;
   appearance: string;
-  avatar: string;
+  avatarUrl: string;
   isDefault: boolean;
   createdAt: string;
 }
@@ -47,6 +47,22 @@ export async function apiDeleteProfile(id: string): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+export async function apiUploadImage(file: File): Promise<string | null> {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    const res = await fetch(`${API_BASE}/upload-image`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { url?: string; imageUrl?: string };
+    return data.url ?? data.imageUrl ?? null;
+  } catch {
+    return null;
   }
 }
 
