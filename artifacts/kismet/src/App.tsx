@@ -11,7 +11,7 @@ import type { Character } from "@/lib/types";
 
 const queryClient = new QueryClient();
 
-type Screen = "home" | "chat" | "settings" | "addCharacter" | "editCharacter" | "userPage";
+type Screen = "home" | "chat" | "settings" | "addCharacter" | "editCharacter" | "userPage" | "auth";
 
 function SplashScreen() {
   return (
@@ -76,20 +76,38 @@ function AppContent() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const profileUid = params.get("profile");
-    if (profileUid && user) {
+    if (profileUid) {
       setViewUserId(profileUid);
       setScreen("userPage");
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [user]);
+  }, []);
 
   if (showSplash || (loading && !hasLocalSession)) {
     return <SplashScreen />;
   }
 
-  if (!user) return <AuthPage />;
+  const requireAuth = (action: () => void) => {
+    if (!user) {
+      setScreen("auth");
+      return;
+    }
+    action();
+  };
+
+  if (screen === "auth") {
+    if (user) {
+      setScreen("home");
+      return null;
+    }
+    return <AuthPage onBack={() => setScreen("home")} />;
+  }
 
   if (screen === "chat" && activeCharacter) {
+    if (!user) {
+      setScreen("home");
+      return null;
+    }
     return (
       <ChatPage
         character={activeCharacter}
@@ -100,19 +118,21 @@ function AppContent() {
   }
 
   if (screen === "settings") {
+    if (!user) { setScreen("home"); return null; }
     return <SettingsPage onBack={() => setScreen("home")} />;
   }
 
   if (screen === "addCharacter") {
+    if (!user) { setScreen("home"); return null; }
     return <AddCharacterPage onBack={() => setScreen("home")} />;
   }
 
   if (screen === "editCharacter" && editCharacter) {
+    if (!user) { setScreen("home"); return null; }
     return (
       <AddCharacterPage
         editCharacter={editCharacter}
         onBack={() => {
-          /* Update activeCharacter with changes if currently in chat */
           setScreen("home");
           setEditCharacter(null);
           setActiveCharacter(null);
@@ -125,19 +145,20 @@ function AppContent() {
     return (
       <UserPage
         uid={viewUserId}
-        isSelf={viewUserId === user.uid}
+        isSelf={!!(user && viewUserId === user.uid)}
         onBack={() => { setScreen("home"); setViewUserId(null); }}
-        onChat={char => { setActiveCharacter(char); setScreen("chat"); }}
+        onChat={char => requireAuth(() => { setActiveCharacter(char); setScreen("chat"); })}
       />
     );
   }
 
   return (
     <HomePage
-      onChat={(char) => { setActiveCharacter(char); setScreen("chat"); }}
-      onSettings={() => setScreen("settings")}
-      onAddCharacter={() => setScreen("addCharacter")}
+      onChat={(char) => requireAuth(() => { setActiveCharacter(char); setScreen("chat"); })}
+      onSettings={() => requireAuth(() => setScreen("settings"))}
+      onAddCharacter={() => requireAuth(() => setScreen("addCharacter"))}
       onViewUser={(uid) => { setViewUserId(uid); setScreen("userPage"); }}
+      onLogin={() => setScreen("auth")}
     />
   );
 }

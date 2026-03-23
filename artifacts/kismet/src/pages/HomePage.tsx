@@ -21,6 +21,7 @@ interface Props {
   onSettings: () => void;
   onAddCharacter: () => void;
   onViewUser: (uid: string) => void;
+  onLogin?: () => void;
 }
 
 /* ── helpers ── */
@@ -335,6 +336,15 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
             </div>
           )}
 
+          {/* ── EMPTY STATE for anonymous when no public chars ── */}
+          {!user && publicChars.length === 0 && privateChars.length === 0 && (
+            <div style={{ textAlign: "center", padding: "48px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 40 }}>✦</span>
+              <p style={{ fontSize: 15, fontWeight: 700, color: "rgba(167,139,250,0.6)" }}>Chưa có nhân vật nào</p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", lineHeight: 1.6 }}>Đăng nhập để xem nhân vật của bạn<br />hoặc đợi cộng đồng ra mắt nhân vật mới</p>
+            </div>
+          )}
+
           {/* ── ADD NEW + IMPORT ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
             <button onClick={onAddCharacter}
@@ -484,9 +494,21 @@ function ForumCard({
 /* ══════════════════════════════════════════════
    TAB: MESSAGES — Smartphone Inbox Style
 ══════════════════════════════════════════════ */
-function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
+function MessagesTab({ onChat, onLogin }: { onChat: (c: Character) => void; onLogin?: () => void }) {
   const { user } = useAuth();
   const { characters, loading } = useCharacters();
+  const [previewChat, setPreviewChat] = useState<{ char: Character; msgs: { role: string; content: string }[] } | null>(null);
+
+  const openPreview = (char: Character) => {
+    try {
+      const email = user?.email || user?.uid || "";
+      const raw = localStorage.getItem(`kismet_chat_${email}_${char.id}`);
+      const msgs = raw ? JSON.parse(raw) : [];
+      setPreviewChat({ char, msgs: Array.isArray(msgs) ? msgs.slice(-6) : [] });
+    } catch {
+      setPreviewChat({ char, msgs: [] });
+    }
+  };
 
   interface RecentChat { char: Character; lastMsg: string; lastTime: number; unread: boolean; }
   const recentChats: RecentChat[] = [];
@@ -515,6 +537,20 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
     if (diff < 7) return ["CN","T2","T3","T4","T5","T6","T7"][d.getDay()];
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
+
+  if (!user) return (
+    <div style={{ textAlign: "center", padding: "70px 24px" }}>
+      <div style={{ fontSize: 52, marginBottom: 16, filter: "drop-shadow(0 0 20px rgba(108,92,231,0.5))" }}>💬</div>
+      <p style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Đăng nhập để xem tin nhắn</p>
+      <p style={{ fontSize: 13, color: "rgba(167,139,250,0.5)", marginBottom: 24, lineHeight: 1.5 }}>
+        Các cuộc trò chuyện của bạn sẽ được lưu ở đây.
+      </p>
+      <button onClick={onLogin}
+        style={{ padding: "13px 36px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(108,92,231,0.4)" }}>
+        ✦ Đăng nhập / Đăng ký
+      </button>
+    </div>
+  );
 
   if (loading) return (
     <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
@@ -550,7 +586,7 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
           return (
             <div
               key={char.id}
-              onClick={() => onChat(char)}
+              onClick={() => openPreview(char)}
               style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "13px 18px",
@@ -620,6 +656,66 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
           );
         })}
       </div>
+
+      {/* Full-screen blurred chat preview overlay */}
+      {previewChat && (
+        <div
+          onClick={() => setPreviewChat(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 600, background: "rgba(4,2,18,0.88)", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", display: "flex", flexDirection: "column", animation: "fadeInMsg 0.22s ease" }}
+        >
+          {/* Header */}
+          <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 18px 14px", borderBottom: "1px solid rgba(108,92,231,0.15)", background: "rgba(14,10,28,0.7)", backdropFilter: "blur(20px)", flexShrink: 0 }}>
+            {(() => {
+              const isUrl = previewChat.char.avatar.startsWith("http") || previewChat.char.avatar.startsWith("data:");
+              return (
+                <div style={{ width: 46, height: 46, borderRadius: "50%", overflow: "hidden", background: isUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, border: "2px solid rgba(108,92,231,0.5)", flexShrink: 0 }}>
+                  {isUrl ? <img src={previewChat.char.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : previewChat.char.avatar}
+                </div>
+              );
+            })()}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{previewChat.char.name}</p>
+              <p style={{ fontSize: 11, color: "rgba(167,139,250,0.5)", fontStyle: "italic" }}>"{previewChat.char.slogan}"</p>
+            </div>
+            <button onClick={() => setPreviewChat(null)} style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14 }}>
+              ✕
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div onClick={e => e.stopPropagation()} style={{ flex: 1, overflowY: "auto", padding: "20px 16px", display: "flex", flexDirection: "column", gap: 12, maxWidth: 500, width: "100%", margin: "0 auto" }}>
+            {previewChat.msgs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+                Chưa có tin nhắn trong cuộc trò chuyện này
+              </div>
+            ) : previewChat.msgs.map((msg, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: "78%", padding: "10px 14px", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                  background: msg.role === "user" ? "linear-gradient(135deg,rgba(108,92,231,0.5),rgba(124,58,237,0.4))" : "rgba(255,255,255,0.06)",
+                  border: msg.role === "user" ? "1px solid rgba(108,92,231,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(8px)",
+                  color: "#fff", fontSize: 13, lineHeight: 1.55,
+                  boxShadow: msg.role === "user" ? "0 2px 12px rgba(108,92,231,0.2)" : "none",
+                }}>
+                  {msg.content.length > 200 ? msg.content.slice(0, 200) + "…" : msg.content}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div onClick={e => e.stopPropagation()} style={{ padding: "16px 18px 32px", borderTop: "1px solid rgba(108,92,231,0.12)", background: "rgba(14,10,28,0.7)", backdropFilter: "blur(20px)", flexShrink: 0 }}>
+            <button
+              onClick={() => { setPreviewChat(null); onChat(previewChat.char); }}
+              style={{ width: "100%", padding: "14px 0", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(108,92,231,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              Tiếp tục trò chuyện →
+            </button>
+          </div>
+
+          <style>{`@keyframes fadeInMsg { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }`}</style>
+        </div>
+      )}
     </div>
   );
 }
@@ -629,7 +725,7 @@ function MessagesTab({ onChat }: { onChat: (c: Character) => void }) {
 ══════════════════════════════════════════════ */
 interface ProfileData { gender: string; personality: string; bio: string; appearance: string; displayName: string; socialLinks?: { label: string; url: string }[]; avatarDataUrl?: string; }
 
-function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: () => void; onAddCharacter: () => void; onViewMyPage?: () => void }) {
+function ProfileTab({ onSettings, onAddCharacter, onViewMyPage, onLogin }: { onSettings: () => void; onAddCharacter: () => void; onViewMyPage?: () => void; onLogin?: () => void }) {
   const { user, logout } = useAuth();
   const { pending, isAdmin, characters } = useCharacters();
   const email = user?.email || user?.uid || "";
@@ -716,6 +812,20 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
     }
     setSaving(false);
   };
+
+  if (!user) return (
+    <div style={{ textAlign: "center", padding: "70px 24px" }}>
+      <div style={{ fontSize: 52, marginBottom: 16, filter: "drop-shadow(0 0 20px rgba(108,92,231,0.5))" }}>🔮</div>
+      <p style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Đăng nhập để tiếp tục</p>
+      <p style={{ fontSize: 13, color: "rgba(167,139,250,0.5)", marginBottom: 24, lineHeight: 1.5 }}>
+        Tạo tài khoản để lưu hồ sơ, chat với nhân vật và nhiều hơn nữa.
+      </p>
+      <button onClick={onLogin}
+        style={{ padding: "13px 36px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#7c3aed,#6c5ce7)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(108,92,231,0.4)" }}>
+        ✦ Đăng nhập / Đăng ký
+      </button>
+    </div>
+  );
 
   if (loadingProfile) return (
     <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
@@ -879,7 +989,7 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
 /* ══════════════════════════════════════════════
    MAIN HOME PAGE
 ══════════════════════════════════════════════ */
-export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUser }: Props) {
+export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUser, onLogin }: Props) {
   const { user } = useAuth();
   const { isAdmin, pending } = useCharacters();
   const email = user?.email || user?.uid || "";
@@ -916,21 +1026,31 @@ export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUse
           )}
           <div>
             <h1 style={{ fontSize: 17, fontWeight: 800, letterSpacing: "0.1em", background: "linear-gradient(135deg,#f5e6a3,#d4af37)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1 }}>KISMET</h1>
-            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", letterSpacing: "0.04em" }}>{email}</p>
+            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", letterSpacing: "0.04em" }}>{user ? email : "Khách · Xem công khai"}</p>
           </div>
         </div>
-        <button onClick={onAddCharacter} title="Tạo nhân vật mới"
-          style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(108,92,231,0.3)", background: "rgba(108,92,231,0.1)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <Plus size={16} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {!user && onLogin && (
+            <button onClick={onLogin}
+              style={{ padding: "6px 14px", borderRadius: 10, border: "1px solid rgba(108,92,231,0.5)", background: "rgba(108,92,231,0.15)", color: "#c4b5fd", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              Đăng nhập
+            </button>
+          )}
+          {user && (
+            <button onClick={onAddCharacter} title="Tạo nhân vật mới"
+              style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(108,92,231,0.3)", background: "rgba(108,92,231,0.1)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <Plus size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── TAB CONTENT ── */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ maxWidth: 500, margin: "0 auto" }}>
           {tab === "all" && <AllTab onChat={onChat} onAddCharacter={onAddCharacter} onViewUser={onViewUser} />}
-          {tab === "messages" && <MessagesTab onChat={onChat} />}
-          {tab === "profile" && <ProfileTab onSettings={onSettings} onAddCharacter={onAddCharacter} onViewMyPage={user ? () => onViewUser(user.uid) : undefined} />}
+          {tab === "messages" && <MessagesTab onChat={onChat} onLogin={onLogin} />}
+          {tab === "profile" && <ProfileTab onSettings={onSettings} onAddCharacter={onAddCharacter} onViewMyPage={user ? () => onViewUser(user.uid) : undefined} onLogin={onLogin} />}
         </div>
       </div>
 

@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-export default function AuthPage() {
+interface Props {
+  onBack?: () => void;
+}
+
+export default function AuthPage({ onBack }: Props) {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -250,8 +254,26 @@ export default function AuthPage() {
           </div>
         </div>
 
+        {onBack && (
+          <div className="text-center mt-4">
+            <button
+              onClick={onBack}
+              className="text-xs transition-colors"
+              style={{ color: "rgba(167,139,250,0.4)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "rgba(167,139,250,0.7)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "rgba(167,139,250,0.4)")
+              }
+            >
+              ← Quay lại xem nhân vật
+            </button>
+          </div>
+        )}
+
         <p
-          className="text-center text-xs mt-6 italic"
+          className="text-center text-xs mt-4 italic"
           style={{ color: "rgba(167,139,250,0.3)" }}
         >
           Số phận đã an bài. Hãy bước vào.

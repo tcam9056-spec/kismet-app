@@ -352,7 +352,7 @@ export default function SettingsPage({ onBack }: Props) {
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {GEMINI_MODELS.map((m) => {
                 const st = modelStatuses[m.id];
                 const isSelected = localModel === m.id;
@@ -361,52 +361,45 @@ export default function SettingsPage({ onBack }: Props) {
                     key={m.id}
                     onClick={() => setLocalModel(m.id)}
                     style={{
-                      padding: "12px 16px", borderRadius: 12, textAlign: "left", cursor: "pointer",
-                      border: `1px solid ${isSelected ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`,
-                      background: isSelected ? "rgba(108,92,231,0.15)" : "rgba(255,255,255,0.03)",
+                      padding: "8px 10px", borderRadius: 10, textAlign: "left", cursor: "pointer",
+                      border: `1px solid ${isSelected ? "rgba(108,92,231,0.6)" : "rgba(255,255,255,0.07)"}`,
+                      background: isSelected ? "rgba(108,92,231,0.18)" : "rgba(255,255,255,0.03)",
+                      backdropFilter: "blur(6px)",
                       color: "#fff", transition: "all 0.15s",
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      display: "flex", flexDirection: "column", gap: 4,
+                      boxShadow: isSelected ? "0 0 0 1px rgba(108,92,231,0.3) inset, 0 4px 12px rgba(108,92,231,0.15)" : "none",
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.8)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.75)", lineHeight: 1.3, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {m.label}
-                        {m.badge && (
-                          <span style={{
-                            marginLeft: 8, fontSize: 9, padding: "2px 7px", borderRadius: 20,
-                            background: isSelected ? "rgba(108,92,231,0.35)" : "rgba(255,255,255,0.07)",
-                            color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.35)",
-                            fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
-                          }}>
-                            {m.badge}
-                          </span>
-                        )}
                       </div>
-                      <div style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", marginTop: 2, fontFamily: "monospace" }}>
-                        models/{m.id}
+                      <div style={{ flexShrink: 0 }}>
+                        {st === "checking" && <Loader2 size={11} style={{ color: "rgba(167,139,250,0.5)", animation: "spin 1s linear infinite" }} />}
+                        {st === "ok" && <CheckCircle2 size={11} style={{ color: "#22c55e" }} />}
+                        {st === "error" && <XCircle size={11} style={{ color: "#ef4444" }} />}
+                        {!st && isSelected && <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700 }}>✓</span>}
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                      {st === "checking" && (
-                        <Loader2 size={14} style={{ color: "rgba(167,139,250,0.5)", animation: "spin 1s linear infinite" }} />
-                      )}
-                      {st === "ok" && (
-                        <CheckCircle2 size={14} style={{ color: "#22c55e" }} />
-                      )}
-                      {st === "error" && (
-                        <XCircle size={14} style={{ color: "#ef4444" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                      {m.badge && (
+                        <span style={{
+                          fontSize: 8, padding: "1px 5px", borderRadius: 8,
+                          background: isSelected ? "rgba(108,92,231,0.35)" : "rgba(255,255,255,0.07)",
+                          color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.35)",
+                          fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em",
+                        }}>
+                          {m.badge}
+                        </span>
                       )}
                       {st === "pending" && (
                         <span style={{
-                          fontSize: 9, padding: "2px 8px", borderRadius: 20, fontWeight: 700,
+                          fontSize: 8, padding: "1px 5px", borderRadius: 8, fontWeight: 700,
                           background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)",
-                          color: "#f59e0b", whiteSpace: "nowrap",
+                          color: "#f59e0b",
                         }}>
-                          Chờ nâng cấp
+                          Soon
                         </span>
-                      )}
-                      {!st && isSelected && (
-                        <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600 }}>✓</span>
                       )}
                     </div>
                   </button>

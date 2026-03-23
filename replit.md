@@ -24,6 +24,14 @@ Full-stack AI character chat app with:
 - Character privacy: Only owner sees "Linh Hồn & Thế Giới" section + Edit button; others see only Ngoại hình & Tính cách.
 - **Avatar storage**: Character avatars are uploaded to **Firebase Storage** (`avatars/characters/{id}`) and the permanent download URL is stored in the Firestore `avatar` field. All users see the same image URL. If `avatar` starts with `http`, it's a URL (Firebase Storage); otherwise it's an emoji fallback. Upload restricted to character owner or admin only.
 
+### Public Access (Anonymous Browsing)
+- `useCharacters.ts` fetches public+approved characters even when no user is logged in (anonymous query: `isPublic==true && isApproved==true`)
+- `App.tsx` uses `requireAuth()` helper: chat/settings/addCharacter routes redirect guests to AuthPage; homepage is public
+- `AuthPage.tsx` accepts optional `onBack` prop — shows "← Quay lại xem nhân vật" button for guests
+- `HomePage.tsx` shows "Khách · Xem công khai" label, login CTA in MessagesTab/ProfileTab, blurred preview overlay for guests, empty state when no public chars
+- All badges/smoke effects visible to any visitor since ForumCard renders UserBadge unconditionally
+- **Note**: Firestore security rules must allow unauthenticated reads for `characters` where `isPublic==true && isApproved==true`
+
 ### Social / Creator Features
 - **Creator ID**: "Tạo bởi {creatorName}" in CharacterProfile is a clickable hyperlink navigating to creator's UserPage.
 - **UserPage** (`/src/pages/UserPage.tsx`): FB-style page with cover, circular avatar, bio, social links, 1:1 character card grid, 1:1 QR code for sharing.

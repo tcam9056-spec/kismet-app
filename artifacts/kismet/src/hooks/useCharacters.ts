@@ -24,44 +24,57 @@ export function useCharacters() {
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   const fetchCharacters = async () => {
-    if (!user) return;
     setLoading(true);
+    try {
+      if (user) {
+        const publicQuery = query(collection(db, "characters"), where("isPublic", "==", true));
+        const userQuery = query(collection(db, "characters"), where("createdBy", "==", user.uid));
 
-    const publicQuery = query(collection(db, "characters"), where("isPublic", "==", true));
-    const userQuery = query(collection(db, "characters"), where("createdBy", "==", user.uid));
+        const [publicSnap, userSnap] = await Promise.all([getDocs(publicQuery), getDocs(userQuery)]);
 
-    const [publicSnap, userSnap] = await Promise.all([getDocs(publicQuery), getDocs(userQuery)]);
+        const seen = new Set<string>();
+        const all: Character[] = [];
 
-    const seen = new Set<string>();
-    const all: Character[] = [];
+        publicSnap.docs.forEach((d) => {
+          const c = { id: d.id, ...d.data() } as Character;
+          if (c.isApproved === true || isAdmin) {
+            seen.add(d.id);
+            all.push(c);
+          }
+        });
 
-    publicSnap.docs.forEach((d) => {
-      const c = { id: d.id, ...d.data() } as Character;
-      if (c.isApproved === true || isAdmin) {
-        seen.add(d.id);
-        all.push(c);
+        userSnap.docs.forEach((d) => {
+          if (!seen.has(d.id)) {
+            all.push({ id: d.id, ...d.data() } as Character);
+          }
+        });
+
+        if (all.length === 0) {
+          await seedDefaultCharacters(user.uid);
+          return fetchCharacters();
+        }
+
+        if (isAdmin) {
+          const pendingChars = publicSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Character))
+            .filter(c => c.isApproved !== true);
+          setPending(pendingChars);
+        }
+
+        setCharacters(all);
+      } else {
+        const publicQuery = query(
+          collection(db, "characters"),
+          where("isPublic", "==", true),
+          where("isApproved", "==", true)
+        );
+        const publicSnap = await getDocs(publicQuery);
+        const all = publicSnap.docs.map(d => ({ id: d.id, ...d.data() } as Character));
+        setCharacters(all);
       }
-    });
-
-    userSnap.docs.forEach((d) => {
-      if (!seen.has(d.id)) {
-        all.push({ id: d.id, ...d.data() } as Character);
-      }
-    });
-
-    if (all.length === 0) {
-      await seedDefaultCharacters(user.uid);
-      return fetchCharacters();
+    } catch (e) {
+      console.error("Failed to fetch characters:", e);
     }
-
-    if (isAdmin) {
-      const pendingChars = publicSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as Character))
-        .filter(c => c.isApproved !== true);
-      setPending(pendingChars);
-    }
-
-    setCharacters(all);
     setLoading(false);
   };
 
@@ -72,7 +85,7 @@ export function useCharacters() {
     }
   };
 
-  useEffect(() => { if (user) fetchCharacters(); }, [user]);
+  useEffect(() => { fetchCharacters(); }, [user?.uid]);
 
   const addCharacter = async (char: Omit<Character, "id" | "createdBy">): Promise<string> => {
     if (!user) return "";
@@ -123,9 +136,15 @@ export function useCharacters() {
   };
 
   return {
-    characters, pending, loading, isAdmin,
-    addCharacter, updateCharacter,
-    approveCharacter, rejectCharacter, removeCharacter,
+    characters: characters || [],
+    pending: pending || [],
+    loading,
+    isAdmin,
+    addCharacter,
+    updateCharacter,
+    approveCharacter,
+    rejectCharacter,
+    removeCharacter,
     refetch: fetchCharacters,
   };
 }

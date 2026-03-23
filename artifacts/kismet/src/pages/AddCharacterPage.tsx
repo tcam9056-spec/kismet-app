@@ -197,11 +197,11 @@ export default function AddCharacterPage({ onBack, editCharacter }: Props) {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", background: "#0a0a0f", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100dvh", background: "linear-gradient(160deg,#06040f 0%,#0e0b1e 60%,#07050f 100%)", color: "#fff", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
 
         {/* ── Header ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 20px 16px", borderBottom: "1px solid rgba(108,92,231,0.15)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 20px 16px", borderBottom: "1px solid rgba(108,92,231,0.12)", background: "rgba(14,10,28,0.7)", backdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 10 }}>
           <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
             <ArrowLeft size={16} />
           </button>
@@ -213,7 +213,7 @@ export default function AddCharacterPage({ onBack, editCharacter }: Props) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 24 }}>
+        <form onSubmit={handleSubmit} style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* ── 1. Avatar Upload ── */}
           <div>
@@ -244,30 +244,31 @@ export default function AddCharacterPage({ onBack, editCharacter }: Props) {
           </div>
 
           {/* ── 2. Tag Cloud ── */}
-          <div>
-            <Label text={`Thể loại & Phong cách 🏷️`} sub={`Chọn tối đa ${MAX_TAGS} tag phù hợp với nhân vật`} />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ borderRadius: 16, border: "1px solid rgba(108,92,231,0.14)", background: "rgba(255,255,255,0.025)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", padding: "14px 14px 12px" }}>
+            <Label text={`Thể loại & Phong cách 🏷️`} sub={`Chọn tối đa ${MAX_TAGS} tag`} />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {TAGS.map(tag => {
                 const active = selectedTags.includes(tag);
                 const hot = tag.includes("18+") || tag === "Bạo lực";
-                const col = hot ? "#f87171" : "#a78bfa";
-                const colBg = hot ? "rgba(239,68,68,0.12)" : "rgba(108,92,231,0.12)";
-                const colBd = hot ? "rgba(239,68,68,0.45)" : "rgba(108,92,231,0.55)";
+                const col = hot ? "#fca5a5" : "#a78bfa";
+                const colBg = hot ? "rgba(239,68,68,0.14)" : "rgba(108,92,231,0.14)";
+                const colBd = hot ? "rgba(239,68,68,0.5)" : "rgba(108,92,231,0.6)";
                 return (
                   <button key={tag} type="button"
                     disabled={!active && selectedTags.length >= MAX_TAGS}
                     onClick={() => toggleTag(tag)}
                     style={{
-                      padding: "6px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: active ? 700 : 400,
-                      border: `1px solid ${active ? colBd : "rgba(255,255,255,0.1)"}`,
+                      padding: "4px 11px", borderRadius: 20, fontSize: 11.5, fontWeight: active ? 700 : 400,
+                      border: `1px solid ${active ? colBd : "rgba(255,255,255,0.09)"}`,
                       background: active ? colBg : "rgba(255,255,255,0.03)",
-                      color: active ? col : "rgba(255,255,255,0.4)",
+                      color: active ? col : "rgba(255,255,255,0.35)",
                       cursor: !active && selectedTags.length >= MAX_TAGS ? "not-allowed" : "pointer",
                       transition: "all 0.15s",
-                      boxShadow: active ? `0 0 10px ${hot ? "rgba(239,68,68,0.2)" : "rgba(108,92,231,0.2)"}` : "none",
-                      opacity: !active && selectedTags.length >= MAX_TAGS ? 0.35 : 1,
+                      boxShadow: active ? `0 0 8px ${hot ? "rgba(239,68,68,0.25)" : "rgba(108,92,231,0.22)"}` : "none",
+                      opacity: !active && selectedTags.length >= MAX_TAGS ? 0.3 : 1,
+                      backdropFilter: active ? "blur(4px)" : "none",
                     }}>
-                    {active && <span style={{ marginRight: 4 }}>✓</span>}{tag}
+                    {active ? "✓ " : ""}{tag}
                   </button>
                 );
               })}
@@ -383,29 +384,29 @@ export default function AddCharacterPage({ onBack, editCharacter }: Props) {
           </div>
 
           {/* ── 10. Public / Private toggle ── */}
-          <div style={{ borderRadius: 14, border: `1px solid ${isPublic ? "rgba(245,158,11,0.25)" : "rgba(108,92,231,0.15)"}`, background: isPublic ? "rgba(245,158,11,0.04)" : "rgba(255,255,255,0.02)", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {isPublic ? <Globe size={16} style={{ color: "#34d399" }} /> : <Lock size={16} style={{ color: "rgba(167,139,250,0.5)" }} />}
+          <div style={{ borderRadius: 16, border: `1px solid ${isPublic ? "rgba(52,211,153,0.3)" : "rgba(108,92,231,0.2)"}`, background: isPublic ? "rgba(52,211,153,0.06)" : "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", overflow: "hidden", boxShadow: isPublic ? "0 0 20px rgba(52,211,153,0.1)" : "none", transition: "all 0.3s" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {isPublic ? <Globe size={14} style={{ color: "#34d399" }} /> : <Lock size={14} style={{ color: "rgba(167,139,250,0.5)" }} />}
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: isPublic ? "#34d399" : "rgba(255,255,255,0.7)" }}>
-                    {isPublic ? "Công khai" : "Riêng tư"}
+                  <p style={{ fontSize: 12, fontWeight: 700, color: isPublic ? "#34d399" : "rgba(255,255,255,0.65)" }}>
+                    {isPublic ? "✦ Công khai" : "🔒 Riêng tư"}
                   </p>
-                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
-                    {isPublic ? "Gửi lên cộng đồng để Admin duyệt" : "Chỉ mình bạn thấy và sử dụng"}
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)" }}>
+                    {isPublic ? "Gửi cộng đồng · chờ Admin duyệt" : "Chỉ mình bạn thấy"}
                   </p>
                 </div>
               </div>
               <button type="button" onClick={() => setIsPublic(v => !v)}
-                style={{ width: 48, height: 26, borderRadius: 13, border: "none", background: isPublic ? "#22c55e" : "rgba(255,255,255,0.12)", cursor: "pointer", position: "relative", transition: "background 0.3s", flexShrink: 0 }}>
-                <div style={{ position: "absolute", top: 3, left: isPublic ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.3s", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }} />
+                style={{ width: 42, height: 23, borderRadius: 12, border: "none", background: isPublic ? "#22c55e" : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative", transition: "background 0.3s", flexShrink: 0, boxShadow: isPublic ? "0 0 10px rgba(34,197,94,0.4)" : "none" }}>
+                <div style={{ position: "absolute", top: 2.5, left: isPublic ? 21 : 2.5, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.3s", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }} />
               </button>
             </div>
             {isPublic && !isEdit && (
-              <div style={{ padding: "10px 16px 12px", borderTop: "1px solid rgba(245,158,11,0.15)", background: "rgba(245,158,11,0.06)", display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <span style={{ fontSize: 14, flexShrink: 0 }}>⏳</span>
-                <p style={{ fontSize: 11, color: "rgba(245,158,11,0.8)", lineHeight: 1.5 }}>
-                  Nhân vật công khai sẽ ở trạng thái <strong>chờ duyệt</strong> cho đến khi Admin phê duyệt.
+              <div style={{ padding: "8px 14px 10px", borderTop: "1px solid rgba(52,211,153,0.12)", background: "rgba(52,211,153,0.05)", display: "flex", gap: 7, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 12, flexShrink: 0 }}>⏳</span>
+                <p style={{ fontSize: 10, color: "rgba(52,211,153,0.7)", lineHeight: 1.5 }}>
+                  Sẽ ở trạng thái <strong>chờ duyệt</strong> cho đến khi Admin phê duyệt.
                 </p>
               </div>
             )}
