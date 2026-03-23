@@ -40,7 +40,7 @@ export async function uploadImage(req: Request, res: Response): Promise<void> {
       Readable.from(req.file!.buffer).pipe(uploadStream);
     });
 
-    res.json({ imageUrl });
+    res.json({ url: imageUrl });
   } catch (err: unknown) {
     let message: string;
     if (err instanceof Error) {
