@@ -12,6 +12,17 @@ export interface Character {
   createdBy: string;
 }
 
+export interface Persona {
+  _id: string;
+  userId: string;
+  name: string;
+  gender: string;
+  personality: string;
+  description: string;
+  appearance: string;
+  createdAt: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";

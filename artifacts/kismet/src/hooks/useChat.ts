@@ -14,7 +14,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendMessage, getErrorMessage } from "@/lib/gemini";
-import type { Message, Character, GeminiModel } from "@/lib/types";
+import type { Message, Character, GeminiModel, Persona } from "@/lib/types";
 
 /* ── How many recent messages to send to AI ── */
 const RECENT_WINDOW = 20; /* 10 user+char pairs */
@@ -84,7 +84,8 @@ async function generateStorySummary(
   } catch {}
 }
 
-function buildUserContext(uid: string): string {
+/* ── Build user context from localStorage profile (fallback) ── */
+function buildUserContextFromLocal(uid: string): string {
   try {
     const raw = localStorage.getItem(`kismet_profile_${uid}`);
     if (!raw) return "";
@@ -105,6 +106,21 @@ function buildUserContext(uid: string): string {
   }
 }
 
+/* ── Build user context from Persona object ── */
+function buildUserContextFromPersona(persona: Persona): string {
+  const lines: string[] = [];
+  if (persona.gender?.trim()) lines.push(`Giới tính: ${persona.gender}`);
+  if (persona.personality?.trim()) lines.push(`Tính cách: ${persona.personality}`);
+  if (persona.appearance?.trim()) lines.push(`Ngoại hình: ${persona.appearance}`);
+  if (persona.description?.trim()) lines.push(`Thông tin bản thân: ${persona.description}`);
+  if (lines.length === 0) return "";
+  return (
+    `[THÔNG TIN VỀ NGƯỜI DÙNG — Persona: ${persona.name}]\n` +
+    lines.join("\n") +
+    `\n\nDựa trên thông tin ngoại hình và tính cách của người dùng này để miêu tả hành động và bối cảnh câu chuyện một cách chân thực và phù hợp.`
+  );
+}
+
 function getMaxTokens(): number {
   try {
     const v = parseInt(localStorage.getItem("kismet_maxTokens") || "2048", 10);
@@ -112,7 +128,14 @@ function getMaxTokens(): number {
   } catch { return 2048; }
 }
 
-export function useChat(character: Character | null, keys: string[], model: GeminiModel, safeMode = true, memories: string[] = []) {
+export function useChat(
+  character: Character | null,
+  keys: string[],
+  model: GeminiModel,
+  safeMode = true,
+  memories: string[] = [],
+  persona?: Persona | null,
+) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -186,10 +209,19 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
         `\n\nNhững điều trên là SỰ THẬT TUYỆT ĐỐI không thể thay đổi. ${character.name} PHẢI nhất quán 100% — không được mâu thuẫn, phủ nhận hay quên.\n\n`
       : "";
 
-    const userContext = buildUserContext(user!.uid);
+    /* Persona takes priority over localStorage profile */
+    const userContext = persona
+      ? buildUserContextFromPersona(persona)
+      : buildUserContextFromLocal(user!.uid);
+
+    /* Persona roleplay injection into character prompt */
+    const personaRoleplayLine = persona
+      ? `\n\n[NHÂN VẬT NGƯỜI DÙNG ĐANG NHẬP VAI: ${persona.name}]\nBạn đang tương tác với ${persona.name} — ${persona.description || "người dùng"}. Tính cách: ${persona.personality || "không rõ"}. Ngoại hình: ${persona.appearance || "không rõ"}.`
+      : "";
+
     const charPrompt = character.curse
-      ? `${character.personality}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`
-      : `${character.personality}\n\nSlogan: "${character.slogan}"`;
+      ? `${character.personality}${personaRoleplayLine}\n\nLời nguyền của bạn: "${character.curse}"\nSlogan: "${character.slogan}"`
+      : `${character.personality}${personaRoleplayLine}\n\nSlogan: "${character.slogan}"`;
 
     const nsfwInstruction = safeMode
       ? `[NỘI DUNG] Ở chế độ an toàn. Tránh nội dung người lớn, bạo lực cực đoan.`
@@ -199,17 +231,20 @@ export function useChat(character: Character | null, keys: string[], model: Gemi
       ? `[BỐI CẢNH HIỆN TẠI] ${quickContext.trim()}`
       : "";
 
+    /* Display name: persona name if active, otherwise userName */
+    const displayName = persona?.name ?? userName;
+
     const novelStyleInstruction = `━━━ QUY TẮC NHẬP VAI BẮT BUỘC ━━━
 Bạn đang nhập vai hoàn toàn là ${character.name} trong một tiểu thuyết chuyên sâu phong cách Wattpad/Waka.
-{{user}} = "${userName}" | {{char}} = "${character.name}"
+{{user}} = "${displayName}" | {{char}} = "${character.name}"
 
 【QUY TẮC ĐỊNH DẠNG — TUYỆT ĐỐI TUÂN THỦ】
 
 ► LỜI THOẠI: Phải nằm trong dấu ngoặc kép VÀ in đậm.
-   Chuẩn: **"Lời ${character.name} nói với ${userName}..."**
+   Chuẩn: **"Lời ${character.name} nói với ${displayName}..."**
 
 ► HÀNH ĐỘNG & MIÊU TẢ: Phải nằm trong dấu sao và in nghiêng.
-   Chuẩn: *${character.name} khẽ nghiêng đầu, ánh mắt trầm ngâm dõi theo từng cử chỉ của ${userName}...*
+   Chuẩn: *${character.name} khẽ nghiêng đầu, ánh mắt trầm ngâm dõi theo từng cử chỉ của ${displayName}...*
 
 ► PHÂN TÁCH RÕ RÀNG: Mỗi phản hồi phải xen kẽ hành động và lời thoại như một trang tiểu thuyết thực thụ.
 
@@ -219,7 +254,7 @@ Bạn đang nhập vai hoàn toàn là ${character.name} trong một tiểu thuy
 2. SHOW DON'T TELL — Không nói cảm xúc trực tiếp. Dùng hành động, cử chỉ, biểu cảm để thể hiện.
 3. MỞ ĐẦU BẰNG HÀNH ĐỘNG — Không bao giờ bắt đầu bằng "Chào bạn" hay câu hỏi chung chung.
 4. ĐỘ DÀI THÔNG MINH — Câu ngắn → phản hồi vừa đủ nhưng giàu hình ảnh. Roleplay sâu → nhiều đoạn, chi tiết.
-5. TIẾNG VIỆT VĂN HỌC — Luôn dùng tiếng Việt tự nhiên, trừ khi ${userName} yêu cầu khác.
+5. TIẾNG VIỆT VĂN HỌC — Luôn dùng tiếng Việt tự nhiên, trừ khi ${displayName} yêu cầu khác.
 
 ${nsfwInstruction}
 ${quickCtxLine}
