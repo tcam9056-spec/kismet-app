@@ -9,6 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { geminiRaw } from "@/lib/gemini";
 import type { Character, GeminiModel } from "@/lib/types";
 import { ADMIN_EMAIL } from "@/lib/types";
+import { useChatProfiles } from "@/hooks/useChatProfiles";
+import type { ChatProfile } from "@/hooks/useChatProfiles";
+import ChatProfileSelector from "@/components/ChatProfileSelector";
 
 /* ═══════════════════════════════════════════════════
    TYPES
@@ -923,8 +926,16 @@ export default function ChatPage({ character, onBack, onEdit }: Props) {
     setMemories(loadMemories(user.uid, character.id));
   }, [user?.uid, character.id]);
 
+  const { profiles: chatProfiles, loading: cpLoading, create: createChatProfile, remove: removeChatProfile } =
+    useChatProfiles(user?.uid ?? null);
+
+  /* Convert ChatProfile → persona shape expected by useChat */
+  const activePersona = activeChatProfile
+    ? { ...activeChatProfile, description: activeChatProfile.bio }
+    : null;
+
   const { messages, loading, sending, statusText, error, send, deleteMessage, regenerate, clearHistory } =
-    useChat(character, keys, selectedModel as GeminiModel, safeMode, memories);
+    useChat(character, keys, selectedModel as GeminiModel, safeMode, memories, activePersona);
 
   /* Persist safeMode to localStorage whenever it changes */
   useEffect(() => {
@@ -943,6 +954,8 @@ export default function ChatPage({ character, onBack, onEdit }: Props) {
   const [showGift, setShowGift] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showChatProfileSelector, setShowChatProfileSelector] = useState(false);
+  const [activeChatProfile, setActiveChatProfile] = useState<ChatProfile | null>(null);
 
   /* avatars */
   const [charAvatarUrl, setCharAvatarUrl] = useState<string | null>(null);
@@ -1093,6 +1106,17 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
         </button>
 
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {/* Hồ sơ nhập vai button */}
+          <button
+            onClick={() => setShowChatProfileSelector(true)}
+            title="Hồ sơ nhập vai"
+            style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${activeChatProfile ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`, background: activeChatProfile ? "rgba(108,92,231,0.15)" : "rgba(255,255,255,0.04)", color: activeChatProfile ? "#a78bfa" : "rgba(167,139,250,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}
+          >
+            <span style={{ fontSize: 15 }}>🎭</span>
+            {activeChatProfile && (
+              <div style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: "50%", background: "#7c3aed", border: "2px solid #0f0d1a" }} />
+            )}
+          </button>
           {/* Camera button — only for character owner/admin */}
           {isOwner && (
             <button onClick={() => charFileRef.current?.click()} title="Thay ảnh nhân vật" style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", color: "rgba(167,139,250,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
@@ -1362,6 +1386,20 @@ Trả về JSON hợp lệ (KHÔNG thêm text khác):
 
       {/* ══ GIFT MODAL ══ */}
       {showGift && <GiftModal gifts={gifts} charName={character.name} onClose={() => setShowGift(false)} />}
+
+      {/* ══ CHAT PROFILE SELECTOR ══ */}
+      {showChatProfileSelector && user && (
+        <ChatProfileSelector
+          userId={user.uid}
+          profiles={chatProfiles}
+          activeId={activeChatProfile?._id ?? null}
+          loading={cpLoading}
+          onSelect={setActiveChatProfile}
+          onCreate={createChatProfile}
+          onDelete={removeChatProfile}
+          onClose={() => setShowChatProfileSelector(false)}
+        />
+      )}
 
       <style>{`
         @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
