@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { ArrowLeft, Share2, Download, Loader2, QrCode, Link2, X } from "lucide-react";
 import QRCode from "qrcode";
-import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUserProfile, computeUserRole } from "@/hooks/useUserProfile";
 import type { Character } from "@/lib/types";
 import { UserBadge } from "@/components/UserBadge";
 
@@ -133,9 +133,9 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
             {displayName}
           </h1>
 
-          {/* Role badge — always shown */}
+          {/* Role badge — computed from Firestore role → public chars → hanhkhach */}
           <div style={{ position: "relative", zIndex: 1, marginBottom: 4 }}>
-            <UserBadge role={profile?.role || "hanhkhach"} size="md" />
+            <UserBadge role={computeUserRole(profile, characters.length > 0)} size="md" />
           </div>
         </div>
 

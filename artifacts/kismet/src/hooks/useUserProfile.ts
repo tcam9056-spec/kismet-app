@@ -38,6 +38,18 @@ export function invalidateProfileCache(uid: string) {
   profileCache.delete(uid);
 }
 
+/**
+ * Compute the display role for a user:
+ * - If they have an explicit Firestore role (admin, writer, vip, mod) → use it
+ * - If they own at least one public approved character → "writer"
+ * - Otherwise → "hanhkhach"
+ */
+export function computeUserRole(profile: { role?: UserRole } | null, hasPublicChars: boolean): UserRole {
+  if (profile?.role) return profile.role;
+  if (hasPublicChars) return "writer";
+  return "hanhkhach";
+}
+
 export async function fetchCreatorDisplayNames(uids: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   const unique = [...new Set(uids)];
@@ -48,12 +60,22 @@ export async function fetchCreatorDisplayNames(uids: string[]): Promise<Map<stri
   return map;
 }
 
-export async function fetchCreatorRoles(uids: string[]): Promise<Map<string, UserRole>> {
+/**
+ * Fetch roles for a set of creator UIDs.
+ * @param uids - array of creator UIDs
+ * @param publicCharOwners - optional set of UIDs that own at least one public approved character;
+ *   used to auto-assign "writer" for users with no explicit Firestore role
+ */
+export async function fetchCreatorRoles(
+  uids: string[],
+  publicCharOwners?: Set<string>,
+): Promise<Map<string, UserRole>> {
   const map = new Map<string, UserRole>();
   const unique = [...new Set(uids)];
   await Promise.all(unique.map(async uid => {
     const p = await fetchUserProfile(uid);
-    if (p?.role) map.set(uid, p.role);
+    const hasPublicChars = publicCharOwners ? publicCharOwners.has(uid) : false;
+    map.set(uid, computeUserRole(p, hasPublicChars));
   }));
   return map;
 }

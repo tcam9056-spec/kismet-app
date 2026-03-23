@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCharacters } from "@/hooks/useCharacters";
 import type { Character } from "@/lib/types";
 import CharacterProfile from "./CharacterProfile";
-import { fetchCreatorDisplayNames, fetchCreatorRoles, invalidateProfileCache } from "@/hooks/useUserProfile";
+import { fetchCreatorDisplayNames, fetchCreatorRoles, invalidateProfileCache, computeUserRole } from "@/hooks/useUserProfile";
 import { UserBadge } from "@/components/UserBadge";
 import type { UserRole } from "@/components/UserBadge";
 
@@ -248,13 +248,18 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
   const [creatorRoles, setCreatorRoles] = useState<Map<string, UserRole>>(new Map());
   const handleImported = useCallback((name: string) => { setShowImport(false); }, []);
 
-  /* Fetch creator display names + roles whenever characters change */
+  /* Fetch creator display names + roles whenever characters change.
+     Auto-assigns "writer" to any uid who owns at least one public approved char. */
   useEffect(() => {
     if (characters.length === 0) return;
     const uids = characters.map(c => c.createdBy).filter(Boolean);
+    /* Build the set of UIDs that own public approved characters */
+    const publicCharOwners = new Set(
+      characters.filter(c => c.isPublic && c.isApproved !== false).map(c => c.createdBy).filter(Boolean)
+    );
     Promise.all([
       fetchCreatorDisplayNames(uids),
-      fetchCreatorRoles(uids),
+      fetchCreatorRoles(uids, publicCharOwners),
     ]).then(([names, roles]) => {
       setCreatorNames(names);
       setCreatorRoles(roles);
@@ -295,7 +300,10 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {publicChars.map(char => (
                   <ForumCard key={char.id} char={char} onChat={() => onChat(char)} onProfile={() => setSelectedChar(char)}
-                    creatorRole={creatorRoles.get(char.createdBy)} />
+                    creatorRole={creatorRoles.get(char.createdBy) || "hanhkhach"}
+                    creatorName={creatorNames.get(char.createdBy) || char.createdBy?.slice(0, 8) || "KISMET"}
+                    onViewCreator={char.createdBy ? () => { onViewUser(char.createdBy); } : undefined}
+                  />
                 ))}
               </div>
             </div>
@@ -382,29 +390,55 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
 }
 
 /* ── Forum card component ── */
-function ForumCard({ char, onChat, onProfile, creatorRole }: { char: Character; onChat: () => void; onProfile: () => void; creatorRole?: UserRole }) {
+function ForumCard({
+  char, onChat, onProfile, creatorRole, creatorName, onViewCreator,
+}: {
+  char: Character;
+  onChat: () => void;
+  onProfile: () => void;
+  creatorRole: UserRole;
+  creatorName?: string;
+  onViewCreator?: () => void;
+}) {
   const isUrl = char.avatar.startsWith("http");
   return (
     <div style={{ borderRadius: 22, border: "1px solid rgba(108,92,231,0.22)", background: "rgba(20,17,40,0.72)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", overflow: "hidden", transition: "border-color 0.2s, box-shadow 0.2s", boxShadow: "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)" }}
       onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = "rgba(108,92,231,0.5)"; el.style.boxShadow = "0 8px 32px rgba(108,92,231,0.18), inset 0 1px 0 rgba(255,255,255,0.06)"; }}
       onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = "rgba(108,92,231,0.22)"; el.style.boxShadow = "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"; }}>
+
       {/* Card body */}
-      <div style={{ padding: "18px 18px 14px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+      <div style={{ padding: "18px 18px 12px", display: "flex", gap: 14, alignItems: "flex-start" }}>
         <button onClick={onProfile} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}>
           <div style={{ width: 68, height: 68, borderRadius: 18, background: isUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, overflow: "hidden", border: "2px solid rgba(108,92,231,0.35)", boxShadow: "0 4px 16px rgba(108,92,231,0.3)" }}>
             {isUrl ? <img src={char.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : char.avatar}
           </div>
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>{char.name}</h3>
-              <UserBadge role={creatorRole || "hanhkhach"} size="sm" />
-            </div>
+          {/* Character name row */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.3, minWidth: 0 }}>{char.name}</h3>
             <span style={{ fontSize: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399", borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600 }}>
               ✦ Công khai
             </span>
           </div>
+
+          {/* Creator row — "Tạo bởi [name] [badge]" */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 7 }}>
+            <span style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", flexShrink: 0 }}>Tạo bởi</span>
+            {onViewCreator ? (
+              <button
+                onClick={e => { e.stopPropagation(); onViewCreator(); }}
+                style={{ all: "unset", cursor: "pointer", fontSize: 10, fontWeight: 700, color: "#a78bfa", textDecoration: "underline", textDecorationColor: "rgba(167,139,250,0.3)", textUnderlineOffset: "2px", transition: "color 0.15s", whiteSpace: "nowrap" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#c4b5fd")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#a78bfa")}>
+                {creatorName}
+              </button>
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(167,139,250,0.5)" }}>{creatorName}</span>
+            )}
+            <UserBadge role={creatorRole} size="sm" />
+          </div>
+
           <p style={{ fontSize: 12, color: "#a78bfa", fontStyle: "italic", lineHeight: 1.5, marginBottom: 8 }}>
             "{char.slogan}"
           </p>
@@ -731,15 +765,12 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
           {draft.displayName || email.split("@")[0]}
         </p>
         <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)", marginBottom: 6 }}>{email}</p>
-        {/* Role badge — always show one */}
+        {/* Role badge — admin → writer (if has public chars) → hanhkhach */}
         <div style={{ marginBottom: 8 }}>
-          <UserBadge
-            role={
-              isAdmin ? "admin"
-              : ((draft as ProfileData & { role?: string }).role as UserRole) || "hanhkhach"
-            }
-            size="md"
-          />
+          <UserBadge role={computeUserRole(
+            { role: isAdmin ? "admin" as UserRole : ((draft as ProfileData & { role?: UserRole }).role) },
+            characters.filter(c => c.createdBy === user?.uid && c.isPublic && c.isApproved !== false).length > 0
+          )} size="md" />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 10px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)" }}>
