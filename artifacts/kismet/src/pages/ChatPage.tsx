@@ -926,6 +926,10 @@ export default function ChatPage({ character, onBack, onEdit }: Props) {
     setMemories(loadMemories(user.uid, character.id));
   }, [user?.uid, character.id]);
 
+  /* ── Chat profile (nhập vai) — must be declared before useChatProfiles + activePersona ── */
+  const [showChatProfileSelector, setShowChatProfileSelector] = useState(false);
+  const [activeChatProfile, setActiveChatProfile] = useState<ChatProfile | null>(null);
+
   const { profiles: chatProfiles, loading: cpLoading, create: createChatProfile, remove: removeChatProfile } =
     useChatProfiles(user?.uid ?? null);
 
@@ -954,8 +958,6 @@ export default function ChatPage({ character, onBack, onEdit }: Props) {
   const [showGift, setShowGift] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
-  const [showChatProfileSelector, setShowChatProfileSelector] = useState(false);
-  const [activeChatProfile, setActiveChatProfile] = useState<ChatProfile | null>(null);
 
   /* avatars */
   const [charAvatarUrl, setCharAvatarUrl] = useState<string | null>(null);
