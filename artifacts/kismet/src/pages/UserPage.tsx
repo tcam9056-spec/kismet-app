@@ -114,7 +114,7 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
         {/* Avatar — overlapping cover and content */}
         <div style={{ position: "absolute", bottom: -48, left: "50%", transform: "translateX(-50%)", zIndex: 10 }}>
           <div style={{ width: 96, height: 96, borderRadius: "50%", background: avatarDataUrl ? "transparent" : "linear-gradient(135deg,#1a0a3e,#6c5ce7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, overflow: "hidden", border: "3px solid #0a0a0f", boxShadow: "0 0 0 2px rgba(108,92,231,0.6), 0 0 0 4px rgba(212,175,55,0.25), 0 0 32px rgba(108,92,231,0.5)" }}>
-            {avatarDataUrl ? <img src={avatarDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (displayName[0]?.toUpperCase() || "✦")}
+            {avatarDataUrl ? <img src={avatarDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "✦"}
           </div>
         </div>
       </div>
@@ -133,12 +133,10 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
             {displayName}
           </h1>
 
-          {/* Role badge */}
-          {profile?.role && (
-            <div style={{ position: "relative", zIndex: 1, marginBottom: 4 }}>
-              <UserBadge role={profile.role} size="md" />
-            </div>
-          )}
+          {/* Role badge — always shown */}
+          <div style={{ position: "relative", zIndex: 1, marginBottom: 4 }}>
+            <UserBadge role={profile?.role || "hanhkhach"} size="md" />
+          </div>
         </div>
 
         {isSelf && (

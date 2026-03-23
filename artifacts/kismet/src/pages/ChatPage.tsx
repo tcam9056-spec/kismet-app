@@ -343,6 +343,8 @@ function PhoneModal({ character, charAvatarUrl, keys, model, onClose }: {
   /* NPC avatar state — track by name */
   const [npcAvatars, setNpcAvatars] = useState<Record<string, string>>({});
   const npcFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  /* Mess tab: open conversation index */
+  const [openConvIdx, setOpenConvIdx] = useState<number | null>(null);
 
   const handleNpcAvatar = async (npcName: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -435,13 +437,13 @@ Trả về JSON hợp lệ theo định dạng sau, KHÔNG thêm text ngoài JSO
 
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid rgba(108,92,231,0.1)", flexShrink: 0 }}>
-        <button style={tabStyle("npc")} onClick={() => setTab("npc")}>👥 NPC</button>
-        <button style={tabStyle("mess")} onClick={() => setTab("mess")}>💬 Mess</button>
-        <button style={tabStyle("assets")} onClick={() => setTab("assets")}>💎 Tài Sản</button>
+        <button style={tabStyle("npc")} onClick={() => { setTab("npc"); setOpenConvIdx(null); }}>👥 NPC</button>
+        <button style={tabStyle("mess")} onClick={() => { setTab("mess"); setOpenConvIdx(null); }}>💬 Mess</button>
+        <button style={tabStyle("assets")} onClick={() => { setTab("assets"); setOpenConvIdx(null); }}>💎 Tài Sản</button>
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+      <div style={{ flex: 1, overflowY: openConvIdx !== null ? "hidden" : "auto", padding: openConvIdx !== null ? "0" : "16px", position: "relative" }}>
         {loading && (
           <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(167,139,250,0.5)" }}>
             <Loader2 size={24} style={{ margin: "0 auto 12px", animation: "spin 1s linear infinite" }} />
@@ -485,48 +487,98 @@ Trả về JSON hợp lệ theo định dạng sau, KHÔNG thêm text ngoài JSO
           </div>
         )}
 
-        {data && tab === "mess" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 4 }}>
-              Tin nhắn mô phỏng
+        {data && tab === "mess" && openConvIdx === null && (
+          /* ── INBOX LIST ── */
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.35)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 12, paddingLeft: 2 }}>
+              {data.messages.length} cuộc trò chuyện
             </p>
-            {data.messages.map((conv, i) => (
-              <div key={i} style={{ borderRadius: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(108,92,231,0.1)", overflow: "hidden" }}>
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(108,92,231,0.08)", background: "rgba(108,92,231,0.07)", fontSize: 12, fontWeight: 700, color: "#c4b5fd" }}>
-                  💬 {character.name} & {conv.between}
+            {data.messages.map((conv, i) => {
+              const lastMsg = conv.chat[conv.chat.length - 1];
+              const npcAvatarSrc = npcAvatars[conv.between] || null;
+              const isLastChar = lastMsg?.from === character.name;
+              return (
+                <div key={i} onClick={() => setOpenConvIdx(i)}
+                  style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 2px", borderBottom: i < data.messages.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", cursor: "pointer", transition: "background 0.15s", borderRadius: 10 }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(108,92,231,0.08)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}>
+                  {/* NPC avatar */}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div style={{ width: 50, height: 50, borderRadius: "50%", background: npcAvatarSrc ? "transparent" : "linear-gradient(135deg,#1a0a3e,#4c1d95)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, overflow: "hidden", border: "2px solid rgba(108,92,231,0.35)", boxShadow: "0 0 10px rgba(108,92,231,0.25)" }}>
+                      {npcAvatarSrc ? <img src={npcAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (conv.chat.find(m => m.from === conv.between)?.emoji || "👤")}
+                    </div>
+                    {/* char avatar inset */}
+                    <div style={{ position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: "50%", background: charAvatarUrl ? "transparent" : "linear-gradient(135deg,#6c5ce7,#a78bfa)", overflow: "hidden", border: "2px solid #0a0a0f", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>
+                      {charAvatarUrl ? <img src={charAvatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : character.avatar}
+                    </div>
+                  </div>
+                  {/* Text */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{character.name} & {conv.between}</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", flexShrink: 0, marginLeft: 8 }}>{lastMsg?.time || ""}</p>
+                    </div>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontStyle: "italic" }}>
+                      {isLastChar ? `${character.name}: ` : `${conv.between}: `}{lastMsg?.content?.slice(0, 45) || ""}
+                    </p>
+                  </div>
+                  <span style={{ fontSize: 14, color: "rgba(108,92,231,0.4)", flexShrink: 0 }}>›</span>
                 </div>
-                <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {conv.chat.map((msg, j) => {
-                    const isChar = msg.from === character.name;
-                    /* Resolve avatar: char avatar | NPC avatar | emoji fallback */
-                    const msgAvatarSrc = isChar ? charAvatarUrl : (npcAvatars[msg.from] || null);
-                    const msgEmoji = msg.emoji;
-                    return (
-                      <div key={j} style={{ display: "flex", justifyContent: isChar ? "flex-end" : "flex-start", gap: 6, alignItems: "flex-end" }}>
-                        {!isChar && (
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: msgAvatarSrc ? "transparent" : "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, overflow: "hidden" }}>
-                            {msgAvatarSrc ? <img src={msgAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : msgEmoji}
-                          </div>
-                        )}
-                        <div>
-                          <div style={{ padding: "8px 12px", borderRadius: isChar ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isChar ? "rgba(108,92,231,0.35)" : "rgba(255,255,255,0.07)", border: `1px solid ${isChar ? "rgba(108,92,231,0.4)" : "rgba(255,255,255,0.06)"}`, fontSize: 12, lineHeight: 1.5, maxWidth: 220 }}>
-                            {msg.content}
-                          </div>
-                          <p style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 3, textAlign: isChar ? "right" : "left", paddingInline: 4 }}>{msg.time}</p>
-                        </div>
-                        {isChar && (
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: msgAvatarSrc ? "transparent" : "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, overflow: "hidden" }}>
-                            {msgAvatarSrc ? <img src={msgAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : msgEmoji}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
+
+        {data && tab === "mess" && openConvIdx !== null && (() => {
+          const conv = data.messages[openConvIdx];
+          return (
+            /* ── FULL-SCREEN CONVERSATION ── */
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#07050f,#0e0b1e)", display: "flex", flexDirection: "column", zIndex: 10 }}>
+              {/* Conv header */}
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(108,92,231,0.15)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0, background: "rgba(14,10,28,0.9)", backdropFilter: "blur(16px)" }}>
+                <button onClick={() => setOpenConvIdx(null)}
+                  style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                  <ChevronLeft size={15} />
+                </button>
+                {/* NPC avatar */}
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: npcAvatars[conv.between] ? "transparent" : "linear-gradient(135deg,#1a0a3e,#4c1d95)", overflow: "hidden", border: "1.5px solid rgba(108,92,231,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                  {npcAvatars[conv.between] ? <img src={npcAvatars[conv.between]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (conv.chat.find(m => m.from === conv.between)?.emoji || "👤")}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{character.name} & {conv.between}</p>
+                  <p style={{ fontSize: 10, color: "rgba(167,139,250,0.45)" }}>Mô phỏng · {conv.chat.length} tin nhắn</p>
+                </div>
+              </div>
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {conv.chat.map((msg, j) => {
+                  const isChar = msg.from === character.name;
+                  const msgAvatarSrc = isChar ? charAvatarUrl : (npcAvatars[msg.from] || null);
+                  return (
+                    <div key={j} style={{ display: "flex", justifyContent: isChar ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}>
+                      {!isChar && (
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: msgAvatarSrc ? "transparent" : "rgba(108,92,231,0.15)", border: "1.5px solid rgba(108,92,231,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0, overflow: "hidden", boxShadow: "0 0 8px rgba(108,92,231,0.2)" }}>
+                          {msgAvatarSrc ? <img src={msgAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : msg.emoji}
+                        </div>
+                      )}
+                      <div style={{ maxWidth: "78%", display: "flex", flexDirection: "column", alignItems: isChar ? "flex-end" : "flex-start" }}>
+                        <div style={{ padding: "9px 13px", borderRadius: isChar ? "16px 16px 4px 16px" : "16px 16px 16px 4px", background: isChar ? "linear-gradient(135deg,rgba(108,92,231,0.55),rgba(124,58,237,0.45))" : "rgba(22,18,40,0.85)", backdropFilter: isChar ? "none" : "blur(12px)", border: `1px solid ${isChar ? "rgba(108,92,231,0.5)" : "rgba(255,255,255,0.07)"}`, fontSize: 13, lineHeight: 1.55, color: "#fff", boxShadow: isChar ? "0 2px 10px rgba(108,92,231,0.3)" : "0 2px 8px rgba(0,0,0,0.3)", wordBreak: "break-word" }}>
+                          {msg.content}
+                        </div>
+                        <p style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", marginTop: 3, paddingInline: 4 }}>{msg.time}</p>
+                      </div>
+                      {isChar && (
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: msgAvatarSrc ? "transparent" : "linear-gradient(135deg,#6c5ce7,#a78bfa)", border: "1.5px solid rgba(108,92,231,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0, overflow: "hidden", boxShadow: "0 0 8px rgba(108,92,231,0.25)" }}>
+                          {msgAvatarSrc ? <img src={msgAvatarSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : character.avatar}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {data && tab === "assets" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

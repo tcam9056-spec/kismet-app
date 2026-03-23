@@ -365,6 +365,7 @@ function AllTab({ onChat, onAddCharacter, onViewUser }: { onChat: (c: Character)
           onChat={() => { onChat(selectedChar); setSelectedChar(null); }}
           viewerEmail={viewerEmail}
           creatorName={creatorNames.get(selectedChar.createdBy) || selectedChar.createdBy?.slice(0, 8) || "KISMET"}
+          creatorRole={creatorRoles.get(selectedChar.createdBy) || "hanhkhach"}
           onViewCreator={selectedChar.createdBy ? () => { setSelectedChar(null); onViewUser(selectedChar.createdBy); } : undefined}
         />
       )}
@@ -398,7 +399,7 @@ function ForumCard({ char, onChat, onProfile, creatorRole }: { char: Character; 
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.3 }}>{char.name}</h3>
-              {creatorRole && <UserBadge role={creatorRole} size="sm" />}
+              <UserBadge role={creatorRole || "hanhkhach"} size="sm" />
             </div>
             <span style={{ fontSize: 10, background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399", borderRadius: 20, padding: "2px 9px", whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600 }}>
               ✦ Công khai

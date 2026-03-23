@@ -3,6 +3,8 @@ import { X, Share2, Download, Loader2, Copy, Check, Lock, Camera } from "lucide-
 import type { Character } from "@/lib/types";
 import { ADMIN_EMAIL } from "@/lib/types";
 import QRCode from "qrcode";
+import { UserBadge } from "@/components/UserBadge";
+import type { UserRole } from "@/components/UserBadge";
 
 /* ── Encode / Decode ── */
 export function encodeCharacter(char: Character): string {
@@ -443,11 +445,12 @@ interface Props {
   onChat: () => void;
   onEdit?: () => void;
   creatorName?: string;
+  creatorRole?: UserRole;
   viewerEmail?: string;   /* email/uid của người đang xem — để tính quyền */
   onViewCreator?: () => void;
 }
 
-export default function CharacterProfile({ character, onClose, onChat, onEdit, creatorName = "KISMET", viewerEmail, onViewCreator }: Props) {
+export default function CharacterProfile({ character, onClose, onChat, onEdit, creatorName = "KISMET", creatorRole, viewerEmail, onViewCreator }: Props) {
   const [avatarSrc, setAvatarSrc] = useState<string | null>(() =>
     character.avatar?.startsWith("http") ? character.avatar : null
   );
@@ -590,7 +593,7 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
           <h2 style={{ position: "relative", zIndex: 1, fontSize: 22, fontWeight: 900, color: "#fff", marginTop: isOwner ? 8 : 14, marginBottom: 3, textAlign: "center", textShadow: "0 0 24px rgba(108,92,231,0.6)" }}>
             {character.name}
           </h2>
-          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 10, justifyContent: "center" }}>
             <span style={{ fontSize: 11, color: "rgba(167,139,250,0.4)" }}>Tạo bởi</span>
             {onViewCreator ? (
               <button onClick={onViewCreator} style={{ all: "unset", cursor: "pointer", fontSize: 11, fontWeight: 700, color: "#a78bfa", textDecoration: "underline", textDecorationColor: "rgba(167,139,250,0.3)", textUnderlineOffset: "2px", transition: "color 0.15s" }}
@@ -601,6 +604,7 @@ export default function CharacterProfile({ character, onClose, onChat, onEdit, c
             ) : (
               <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(167,139,250,0.55)" }}>{creatorName}</span>
             )}
+            <UserBadge role={creatorRole || "hanhkhach"} size="sm" />
             {isOwner && onEdit && (
               <button onClick={onEdit} style={{ all: "unset", cursor: "pointer", marginLeft: 4, fontSize: 10, fontWeight: 700, padding: "2px 10px", borderRadius: 10, background: "rgba(108,92,231,0.15)", border: "1px solid rgba(108,92,231,0.35)", color: "#a78bfa", letterSpacing: "0.04em" }}>
                 Chỉnh sửa
