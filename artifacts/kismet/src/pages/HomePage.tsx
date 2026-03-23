@@ -765,13 +765,24 @@ function ProfileTab({ onSettings, onAddCharacter, onViewMyPage }: { onSettings: 
           {draft.displayName || email.split("@")[0]}
         </p>
         <p style={{ fontSize: 11, color: "rgba(167,139,250,0.4)", marginBottom: 6 }}>{email}</p>
-        {/* Role badge — admin → writer (if has public chars) → hanhkhach */}
-        <div style={{ marginBottom: 8 }}>
-          <UserBadge role={computeUserRole(
+        {/* Role badge with role-matched smoke */}
+        {(() => {
+          const myRole = computeUserRole(
             { role: isAdmin ? "admin" as UserRole : ((draft as ProfileData & { role?: UserRole }).role) },
             characters.filter(c => c.createdBy === user?.uid && c.isPublic && c.isApproved !== false).length > 0
-          )} size="md" />
-        </div>
+          );
+          const smokeA = myRole === "admin" ? "rgba(212,175,55,0.18)" : myRole === "writer" ? "rgba(88,28,135,0.2)" : "rgba(140,140,155,0.12)";
+          const smokeB = myRole === "admin" ? "rgba(180,120,0,0.13)" : myRole === "writer" ? "rgba(139,92,246,0.16)" : "rgba(100,100,115,0.1)";
+          return (
+            <div style={{ position: "relative", display: "inline-block", marginBottom: 8, padding: "4px 12px" }}>
+              <div style={{ position: "absolute", top: "-40%", left: "-20%", width: "70%", height: "180%", background: `radial-gradient(ellipse, ${smokeA} 0%, transparent 68%)`, filter: "blur(18px)", animation: "smokeDriftA 7s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
+              <div style={{ position: "absolute", top: "-30%", right: "-20%", width: "60%", height: "160%", background: `radial-gradient(ellipse, ${smokeB} 0%, transparent 68%)`, filter: "blur(16px)", animation: "smokeDriftB 9s ease-in-out 2s infinite", pointerEvents: "none", zIndex: 0 }} />
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <UserBadge role={myRole} size="md" />
+              </div>
+            </div>
+          );
+        })()}
         <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 10px", borderRadius: 20, background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)" }}>
             <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 600 }}>✦ Hồ sơ lưu cloud · Đồng bộ đa thiết bị</span>
@@ -934,6 +945,14 @@ export default function HomePage({ onChat, onSettings, onAddCharacter, onViewUse
 
       <style>{`
         @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+        @keyframes smokeDriftA {
+          0%,100% { transform:translate(0px,0px) scale(1); opacity:0.6; }
+          50%      { transform:translate(14px,-5px) scale(1.1); opacity:1; }
+        }
+        @keyframes smokeDriftB {
+          0%,100% { transform:translate(0px,0px) scale(1); opacity:0.5; }
+          50%      { transform:translate(-11px,8px) scale(1.08); opacity:0.85; }
+        }
         textarea::placeholder, input::placeholder { color:rgba(255,255,255,0.2); }
         *::-webkit-scrollbar{width:4px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:rgba(108,92,231,0.3);border-radius:4px}
       `}</style>

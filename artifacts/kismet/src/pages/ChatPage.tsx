@@ -767,66 +767,128 @@ function PlusMenu({ onPhone, onGift, onFavorites, onMemory, giftCount, memoryCou
   giftCount: number; memoryCount: number; onClose: () => void;
   safeMode: boolean; onToggleSafeMode: () => void; modelName: string;
 }) {
+  /* ── Feature button: deep glass card ── */
   const btn = (icon: React.ReactNode, label: string, badge: number, onClick: () => void, color: string) => (
     <button onClick={() => { onClick(); onClose(); }}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 16px", borderRadius: 18, border: `1px solid rgba(160,160,180,0.12)`, background: "rgba(30,26,50,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", cursor: "pointer", position: "relative", minWidth: 68, flex: 1, boxShadow: "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)", transition: "all 0.15s" }}>
-      <div style={{ width: 44, height: 44, borderRadius: 14, background: `${color}18`, border: `1px solid rgba(160,160,180,0.15)`, display: "flex", alignItems: "center", justifyContent: "center", color, boxShadow: `0 0 12px rgba(150,150,165,0.18), 0 0 4px ${color}30`, backdropFilter: "blur(4px)" }}>
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
+        padding: "13px 10px 11px",
+        borderRadius: 20,
+        /* Premium gradient glass stroke */
+        background: "linear-gradient(rgba(255,255,255,0.045),rgba(255,255,255,0.015)) padding-box, linear-gradient(135deg,rgba(255,255,255,0.18) 0%,rgba(108,92,231,0.18) 50%,rgba(255,255,255,0.06) 100%) border-box",
+        border: "1px solid transparent",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        cursor: "pointer", position: "relative", flex: 1,
+        boxShadow: `0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07), 0 0 0 0 ${color}`,
+        transition: "transform 0.12s, box-shadow 0.12s",
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 14px ${color}28`; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07), 0 0 0 0 ${color}`; }}>
+      <div style={{
+        width: 42, height: 42, borderRadius: 13,
+        background: `linear-gradient(135deg,${color}22,${color}10)`,
+        border: `1px solid ${color}35`,
+        display: "flex", alignItems: "center", justifyContent: "center", color,
+        boxShadow: `0 0 16px ${color}28, 0 0 5px ${color}18`,
+      }}>
         {icon}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(200,195,220,0.8)" }}>{label}</span>
-      {badge > 0 && <div style={{ position: "absolute", top: 10, right: 10, width: 18, height: 18, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 8px rgba(239,68,68,0.6)" }}>{badge}</div>}
+      <span style={{ fontSize: 10.5, fontWeight: 700, color: "rgba(210,205,230,0.85)", letterSpacing: "0.02em" }}>{label}</span>
+      {badge > 0 && (
+        <div style={{ position: "absolute", top: 9, right: 9, width: 17, height: 17, borderRadius: "50%", background: "#ef4444", color: "#fff", fontSize: 9.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 8px rgba(239,68,68,0.7)" }}>{badge}</div>
+      )}
     </button>
   );
 
+  const is18 = !safeMode; /* 18+ mode active when safeMode is OFF */
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 250 }} onClick={onClose}>
-      <div style={{ position: "absolute", bottom: 76, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 448 }} onClick={e => e.stopPropagation()}>
-        <div style={{ background: "rgba(16,13,30,0.88)", border: "1px solid rgba(108,92,231,0.22)", borderRadius: 24, padding: "16px 16px 18px", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", boxShadow: "0 -8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ position: "absolute", bottom: 76, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 28px)", maxWidth: 448 }} onClick={e => e.stopPropagation()}>
+        <div style={{
+          background: "rgba(12,9,24,0.82)",
+          border: "1px solid rgba(108,92,231,0.18)",
+          borderRadius: 26,
+          padding: "14px 14px 16px",
+          backdropFilter: "blur(36px)", WebkitBackdropFilter: "blur(36px)",
+          boxShadow: "0 -12px 50px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05)",
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
 
-          {/* ── 1. Toggle 18+ ── */}
-          <div
-            onClick={onToggleSafeMode}
-            style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, border: `1px solid ${safeMode ? "rgba(108,92,231,0.2)" : "rgba(239,68,68,0.3)"}`, background: safeMode ? "rgba(108,92,231,0.07)" : "rgba(239,68,68,0.08)", cursor: "pointer" }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: 11, background: safeMode ? "rgba(108,92,231,0.15)" : "rgba(239,68,68,0.15)", border: `1px solid ${safeMode ? "rgba(108,92,231,0.3)" : "rgba(239,68,68,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", color: safeMode ? "#a78bfa" : "#f87171", flexShrink: 0 }}>
-              {safeMode ? <Shield size={17} /> : <ShieldOff size={17} />}
+          {/* ── Top meta row: 18+ toggle + Model pill (single compact row) ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+            {/* 18+ mini toggle */}
+            <div onClick={onToggleSafeMode}
+              style={{
+                flex: 1, display: "flex", alignItems: "center", gap: 9,
+                padding: "8px 11px",
+                borderRadius: 12,
+                border: `1px solid ${is18 ? "rgba(239,68,68,0.45)" : "rgba(255,255,255,0.07)"}`,
+                background: is18 ? "rgba(220,38,38,0.08)" : "rgba(255,255,255,0.03)",
+                boxShadow: is18 ? "0 0 12px rgba(239,68,68,0.18), inset 0 0 8px rgba(220,38,38,0.06)" : "none",
+                cursor: "pointer", transition: "all 0.2s",
+              }}>
+              <div style={{ color: is18 ? "#f87171" : "rgba(167,139,250,0.45)", flexShrink: 0, transition: "color 0.2s" }}>
+                {is18 ? <ShieldOff size={13} /> : <Shield size={13} />}
+              </div>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: is18 ? "#f87171" : "rgba(200,195,220,0.45)", flex: 1, transition: "color 0.2s" }}>
+                {is18 ? "🔞 18+ Bật" : "🔒 An toàn"}
+              </span>
+              {/* Minimalist neon switch */}
+              <div style={{
+                width: 32, height: 18, borderRadius: 9,
+                background: is18 ? "rgba(220,38,38,0.7)" : "rgba(80,80,100,0.35)",
+                border: `1px solid ${is18 ? "rgba(239,68,68,0.7)" : "rgba(255,255,255,0.1)"}`,
+                boxShadow: is18 ? "0 0 8px rgba(239,68,68,0.6), 0 0 16px rgba(220,38,38,0.25)" : "none",
+                position: "relative", transition: "all 0.22s", flexShrink: 0,
+              }}>
+                <div style={{
+                  width: 12, height: 12, borderRadius: "50%",
+                  background: is18 ? "#fff" : "rgba(255,255,255,0.5)",
+                  position: "absolute", top: 2,
+                  left: is18 ? 16 : 2,
+                  transition: "left 0.22s",
+                  boxShadow: is18 ? "0 0 4px rgba(239,68,68,0.8)" : "none",
+                }} />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 1 }}>
-                {safeMode ? "🔒 Lọc nội dung nhạy cảm" : "🔞 Chế độ 18+ (Không kiểm duyệt)"}
-              </p>
-              <p style={{ fontSize: 11, color: safeMode ? "rgba(167,139,250,0.5)" : "rgba(248,113,113,0.6)" }}>
-                {safeMode ? "Bật — Nội dung an toàn" : "Tắt — Nhân vật phản hồi tự do"}
-              </p>
+
+            {/* Model pill */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 11px",
+              borderRadius: 12,
+              border: "1px solid rgba(52,211,153,0.2)",
+              background: "rgba(52,211,153,0.04)",
+              maxWidth: 140, overflow: "hidden",
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 6px rgba(52,211,153,0.8)", flexShrink: 0 }} />
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#34d399", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{modelName}</span>
             </div>
-            {/* Toggle pill */}
-            <div style={{ width: 44, height: 26, borderRadius: 13, background: safeMode ? "rgba(108,92,231,0.3)" : "#dc2626", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: safeMode ? 3 : 21, transition: "left 0.2s" }} />
-            </div>
+
           </div>
 
-          {/* ── 2. Model status ── */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 14, border: "1px solid rgba(52,211,153,0.2)", background: "rgba(52,211,153,0.05)" }}>
-            <CheckCircle2 size={16} style={{ color: "#34d399", flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 11, color: "rgba(167,139,250,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Model đang dùng</p>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#34d399", marginTop: 1 }}>{modelName}</p>
-            </div>
-          </div>
-
-          {/* ── 3. Feature buttons ── */}
+          {/* ── Feature buttons ── */}
           <div>
-            <p style={{ fontSize: 10, color: "rgba(167,139,250,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 10, textAlign: "center" }}>Tính năng</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              {btn(<Phone size={18} />, "Điện thoại", 0, onPhone, "#6c5ce7")}
-              {btn(<Gift size={18} />, "Quà tặng", giftCount, onGift, "#f59e0b")}
-              {btn(<span style={{ fontSize: 19 }}>🧿</span>, "Ký ức", memoryCount, onMemory, "#a855f7")}
-              {btn(<Heart size={18} />, "Yêu thích", 0, onFavorites, "#ec4899")}
+            <p style={{ fontSize: 9.5, color: "rgba(167,139,250,0.3)", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700, marginBottom: 9, textAlign: "center" }}>Tính năng</p>
+            <div style={{ display: "flex", gap: 7 }}>
+              {btn(<Phone size={17} />, "Điện thoại", 0, onPhone, "#6c5ce7")}
+              {btn(<Gift size={17} />, "Quà tặng", giftCount, onGift, "#f59e0b")}
+              {btn(<span style={{ fontSize: 18 }}>🧿</span>, "Ký ức", memoryCount, onMemory, "#a855f7")}
+              {btn(<Heart size={17} />, "Yêu thích", 0, onFavorites, "#ec4899")}
             </div>
           </div>
 
         </div>
       </div>
+
+      <style>{`
+        @keyframes plusMenuIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(0.97); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1);    }
+        }
+      `}</style>
     </div>
   );
 }

@@ -122,22 +122,38 @@ export default function UserPage({ uid, onBack, onChat, isSelf = false }: Props)
       {/* ── PROFILE INFO ── */}
       <div style={{ paddingTop: 60, paddingBottom: 8, textAlign: "center", paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
 
-        {/* Name + Badge with Smoke Glow */}
-        <div style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
-          {/* Smoke blob A — golden drift */}
-          <div style={{ position: "absolute", top: "-30%", left: "-25%", width: "75%", height: "160%", background: "radial-gradient(ellipse, rgba(212,175,55,0.13) 0%, transparent 70%)", filter: "blur(20px)", animation: "smokeDriftA 7s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
-          {/* Smoke blob B — violet drift */}
-          <div style={{ position: "absolute", top: "-20%", right: "-20%", width: "65%", height: "140%", background: "radial-gradient(ellipse, rgba(108,92,231,0.16) 0%, transparent 70%)", filter: "blur(16px)", animation: "smokeDriftB 9s ease-in-out 1.8s infinite", pointerEvents: "none", zIndex: 0 }} />
+        {/* Name + Badge with role-matched Smoke Glow */}
+        {(() => {
+          const userRole = computeUserRole(profile, characters.length > 0);
+          /* Smoke palette per role */
+          const smokeA = userRole === "admin"
+            ? "rgba(212,175,55,0.18)"
+            : userRole === "writer" ? "rgba(88,28,135,0.2)"
+            : userRole === "vip" ? "rgba(96,165,250,0.16)"
+            : "rgba(140,140,155,0.14)";
+          const smokeB = userRole === "admin"
+            ? "rgba(180,120,0,0.14)"
+            : userRole === "writer" ? "rgba(139,92,246,0.18)"
+            : userRole === "vip" ? "rgba(37,99,235,0.14)"
+            : "rgba(100,100,115,0.12)";
+          return (
+            <div style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
+              {/* Smoke blob A */}
+              <div style={{ position: "absolute", top: "-35%", left: "-30%", width: "80%", height: "170%", background: `radial-gradient(ellipse, ${smokeA} 0%, transparent 68%)`, filter: "blur(22px)", animation: "smokeDriftA 7s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
+              {/* Smoke blob B */}
+              <div style={{ position: "absolute", top: "-20%", right: "-25%", width: "70%", height: "150%", background: `radial-gradient(ellipse, ${smokeB} 0%, transparent 68%)`, filter: "blur(18px)", animation: "smokeDriftB 9.5s ease-in-out 1.8s infinite", pointerEvents: "none", zIndex: 0 }} />
 
-          <h1 style={{ position: "relative", zIndex: 1, fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 6, textShadow: "0 0 24px rgba(108,92,231,0.5)" }}>
-            {displayName}
-          </h1>
+              <h1 style={{ position: "relative", zIndex: 1, fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 6, textShadow: "0 0 24px rgba(108,92,231,0.5)" }}>
+                {displayName}
+              </h1>
 
-          {/* Role badge — computed from Firestore role → public chars → hanhkhach */}
-          <div style={{ position: "relative", zIndex: 1, marginBottom: 4 }}>
-            <UserBadge role={computeUserRole(profile, characters.length > 0)} size="md" />
-          </div>
-        </div>
+              {/* Role badge */}
+              <div style={{ position: "relative", zIndex: 1, marginBottom: 4 }}>
+                <UserBadge role={userRole} size="md" />
+              </div>
+            </div>
+          );
+        })()}
 
         {isSelf && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, padding: "3px 12px", borderRadius: 20, background: "rgba(108,92,231,0.12)", border: "1px solid rgba(108,92,231,0.3)", color: "#a78bfa", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 10 }}>
